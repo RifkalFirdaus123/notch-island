@@ -12,6 +12,7 @@ final class IslandViewModel: ObservableObject {
     @Published var lyricLine: String?
 
     let battery: BatteryService
+    let systemStats: SystemStatsService
     let clock: ClockService
     let camera: CameraService
     let shelf: ShelfService
@@ -28,6 +29,7 @@ final class IslandViewModel: ObservableObject {
 
     init(
         battery: BatteryService,
+        systemStats: SystemStatsService,
         clock: ClockService,
         camera: CameraService,
         shelf: ShelfService,
@@ -35,6 +37,7 @@ final class IslandViewModel: ObservableObject {
         nowPlaying: NowPlayingService
     ) {
         self.battery = battery
+        self.systemStats = systemStats
         self.clock = clock
         self.camera = camera
         self.shelf = shelf

@@ -46,7 +46,12 @@ struct ExpandedIslandView: View {
     private func tabContent(_ tab: IslandTab) -> some View {
         switch tab {
         case .home:
-            HomeTabView(clock: viewModel.clock, battery: viewModel.battery, nowPlaying: viewModel.nowPlaying)
+            HomeTabView(
+                clock: viewModel.clock,
+                battery: viewModel.battery,
+                systemStats: viewModel.systemStats,
+                nowPlaying: viewModel.nowPlaying
+            )
         case .camera:
             CameraTabView(camera: viewModel.camera)
         case .shelf:

@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let viewModel = IslandViewModel(
             battery: battery,
+            systemStats: SystemStatsService(),
             clock: clock,
             camera: CameraService(),
             shelf: shelf,
