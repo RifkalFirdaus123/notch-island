@@ -10,6 +10,9 @@ enum SettingsKeys {
 
     static let featureCamera = "featureCamera"
     static let featureShelf = "featureShelf"
+    static let featureProjects = "featureProjects"
+    /// Folder listed in the Projects tab; empty means ~/Documents/hotama.
+    static let projectsFolder = "projectsFolder"
     static let featureLyrics = "featureLyrics"
     /// Height of the lyric strip under the notch, in points.
     static let lyricStripHeight = "lyricStripHeight"
@@ -26,6 +29,8 @@ enum SettingsKeys {
             shelfCopiesFiles: false,
             featureCamera: true,
             featureShelf: true,
+            featureProjects: true,
+            projectsFolder: "",
             featureLyrics: true,
             lyricStripHeight: defaultLyricStripHeight,
             musicSpotify: true,

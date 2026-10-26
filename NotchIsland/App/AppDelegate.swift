@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             clock: clock,
             camera: CameraService(),
             shelf: shelf,
+            projects: ProjectsService(),
             nowPlaying: nowPlaying
         )
         lyrics.$currentLine

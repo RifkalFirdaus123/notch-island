@@ -20,6 +20,7 @@ enum IslandTab: Int, CaseIterable, Identifiable {
     case home
     case camera
     case shelf
+    case projects
 
     var id: Int { rawValue }
 
@@ -28,14 +29,19 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         case .home: "house.fill"
         case .camera: "camera.fill"
         case .shelf: "tray.full.fill"
+        case .projects: "folder.fill"
         }
     }
+
+    /// The left ear only fits three icons; the rest sit beside the title.
+    var isInRightEar: Bool { self == .projects }
 
     var title: LocalizedStringKey {
         switch self {
         case .home: "Home"
         case .camera: "Camera"
         case .shelf: "File Shelf"
+        case .projects: "Projects"
         }
     }
 }

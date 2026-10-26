@@ -15,6 +15,7 @@ final class IslandViewModel: ObservableObject {
     let clock: ClockService
     let camera: CameraService
     let shelf: ShelfService
+    let projects: ProjectsService
     let nowPlaying: NowPlayingService
 
     /// Width of each "ear" next to the notch in the hover state.
@@ -30,12 +31,14 @@ final class IslandViewModel: ObservableObject {
         clock: ClockService,
         camera: CameraService,
         shelf: ShelfService,
+        projects: ProjectsService,
         nowPlaying: NowPlayingService
     ) {
         self.battery = battery
         self.clock = clock
         self.camera = camera
         self.shelf = shelf
+        self.projects = projects
         self.nowPlaying = nowPlaying
     }
 
@@ -52,6 +55,7 @@ final class IslandViewModel: ObservableObject {
             case .home: true
             case .camera: UserDefaults.standard.bool(forKey: SettingsKeys.featureCamera)
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
+            case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
             }
         }
     }

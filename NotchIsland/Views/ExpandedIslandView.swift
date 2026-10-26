@@ -8,7 +8,7 @@ struct ExpandedIslandView: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 HStack(spacing: 2) {
-                    ForEach(viewModel.enabledTabs) { tab in
+                    ForEach(viewModel.enabledTabs.filter { !$0.isInRightEar }) { tab in
                         TabButton(tab: tab, isSelected: tab == viewModel.selectedTab) {
                             viewModel.select(tab)
                         }
@@ -19,6 +19,14 @@ struct ExpandedIslandView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
+                HStack(spacing: 2) {
+                    ForEach(viewModel.enabledTabs.filter(\.isInRightEar)) { tab in
+                        TabButton(tab: tab, isSelected: tab == viewModel.selectedTab) {
+                            viewModel.select(tab)
+                        }
+                    }
+                }
+                .padding(.leading, 6)
             }
             .padding(.horizontal, 14)
             .frame(height: viewModel.notchSize.height)
@@ -43,6 +51,8 @@ struct ExpandedIslandView: View {
             CameraTabView(camera: viewModel.camera)
         case .shelf:
             ShelfTabView(shelf: viewModel.shelf)
+        case .projects:
+            ProjectsTabView(projects: viewModel.projects)
         }
     }
 }

@@ -33,6 +33,22 @@
         }
       }
     },
+    "Antigravity is not installed.": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity belum terpasang."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity is not installed."
+          }
+        }
+      }
+    },
     "Apple Music": {
       "localizations": {
         "id": {
@@ -97,6 +113,22 @@
         }
       }
     },
+    "Can't read %@": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak bisa membaca %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't read %@"
+          }
+        }
+      }
+    },
     "Charging": {
       "localizations": {
         "id": {
@@ -109,6 +141,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Charging"
+          }
+        }
+      }
+    },
+    "Choose…": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pilih…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose…"
           }
         }
       }
@@ -221,6 +269,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "File not found"
+          }
+        }
+      }
+    },
+    "Folder": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder"
+          }
+        }
+      }
+    },
+    "Folders and .code-workspace files here open in Antigravity.": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder dan file .code-workspace di sini dibuka dengan Antigravity."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders and .code-workspace files here open in Antigravity."
           }
         }
       }
@@ -449,6 +529,22 @@
         }
       }
     },
+    "No projects found": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak ada proyek"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No projects found"
+          }
+        }
+      }
+    },
     "NotchIsland Settings": {
       "localizations": {
         "id": {
@@ -561,6 +657,22 @@
         }
       }
     },
+    "Open in Antigravity": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buka di Antigravity"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Antigravity"
+          }
+        }
+      }
+    },
     "Pause": {
       "localizations": {
         "id": {
@@ -641,6 +753,38 @@
         }
       }
     },
+    "Projects": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proyek"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects"
+          }
+        }
+      }
+    },
+    "Projects tab": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab Proyek"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects tab"
+          }
+        }
+      }
+    },
     "Quit NotchIsland": {
       "localizations": {
         "id": {
@@ -653,6 +797,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quit NotchIsland"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muat Ulang"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
           }
         }
       }
@@ -701,6 +861,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings…"
+          }
+        }
+      }
+    },
+    "Show Folder in Finder": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tampilkan Folder di Finder"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Folder in Finder"
           }
         }
       }

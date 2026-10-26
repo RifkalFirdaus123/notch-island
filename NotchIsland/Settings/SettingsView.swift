@@ -8,6 +8,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.showInFullscreen) private var showInFullscreen = false
     @AppStorage(SettingsKeys.featureCamera) private var cameraEnabled = true
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
+    @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
+    @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
@@ -48,6 +50,7 @@ struct SettingsView: View {
             Section("Features") {
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
+                Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
                 LabeledContent("Lyric strip height") {
                     HStack {
@@ -87,6 +90,24 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Folder") {
+                    HStack {
+                        Text(verbatim: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .foregroundStyle(.secondary)
+                        Button("Choose…") { chooseProjectsFolder() }
+                    }
+                }
+            } header: {
+                Text("Projects")
+            } footer: {
+                Text("Folders and .code-workspace files here open in Antigravity.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. The camera picture is never recorded or stored.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -105,6 +126,17 @@ struct SettingsView: View {
             case .javascriptDisabled:
                 String(localized: "In \(name), turn on View › Developer › Allow JavaScript from Apple Events.")
             }
+        }
+    }
+
+    private func chooseProjectsFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
+        if panel.runModal() == .OK, let url = panel.url {
+            projectsFolder = url.path
         }
     }
 
