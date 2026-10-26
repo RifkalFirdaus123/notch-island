@@ -1,0 +1,38 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NotchIsland menampilkan cermin kamera langsung di tab Kamera. Video tidak pernah direkam atau dikirim ke mana pun."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NotchIsland shows a live camera mirror in the Camera tab. Video is never recorded or sent anywhere."
+          }
+        }
+      }
+    },
+    "NSAppleEventsUsageDescription": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NotchIsland membaca lagu yang sedang diputar dari Spotify, Music, dan YouTube di browser, serta mengontrol pemutarannya."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, and controls playback."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
