@@ -4,6 +4,7 @@ import Combine
 
 enum CameraState: Equatable {
     case idle
+    case starting
     case requestingAccess
     case running
     case denied
@@ -12,6 +13,7 @@ enum CameraState: Equatable {
 
 /// Runs the capture session only while someone is looking at it.
 /// Frames go straight to the preview layer; nothing is recorded or stored.
+@MainActor
 final class CameraService: ObservableObject {
     @Published private(set) var state: CameraState = .idle
 
@@ -21,6 +23,7 @@ final class CameraService: ObservableObject {
     private var wantsRunning = false
 
     var session: AVCaptureSession { capture.session }
+    var previewLayer: AVCaptureVideoPreviewLayer { capture.previewLayer }
 
     static let privacySettingsURL = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"
@@ -33,8 +36,8 @@ final class CameraService: ObservableObject {
             run()
         case .notDetermined:
             state = .requestingAccess
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                Task { @MainActor [weak self] in
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                Task { @MainActor in
                     guard let self else { return }
                     if !granted {
                         self.state = .denied
@@ -54,8 +57,8 @@ final class CameraService: ObservableObject {
 
     func stop() {
         wantsRunning = false
+        state = .idle
         capture.stop()
-        if state == .running { state = .idle }
     }
 
     func openPrivacySettings() {
@@ -67,8 +70,17 @@ final class CameraService: ObservableObject {
             state = .unavailable
             return
         }
-        capture.start(with: device)
-        state = .running
+        state = .starting
+        capture.start(with: device) { [weak self] success in
+            Task { @MainActor in
+                guard let self, self.wantsRunning else { return }
+                if success {
+                    self.state = .running
+                } else {
+                    self.state = .unavailable
+                }
+            }
+        }
     }
 }
 
@@ -76,16 +88,25 @@ final class CameraService: ObservableObject {
 /// since starting/stopping blocks.
 nonisolated final class CaptureSessionController: @unchecked Sendable {
     let session = AVCaptureSession()
+    let previewLayer: AVCaptureVideoPreviewLayer
     private let queue = DispatchQueue(label: "NotchIsland.camera")
     private var configuredDeviceID: String?
 
-    func start(with device: AVCaptureDevice) {
+    init() {
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        self.previewLayer = layer
+    }
+
+    func start(with device: AVCaptureDevice, completion: (@escaping @Sendable (Bool) -> Void)) {
         let deviceID = device.uniqueID
         queue.async { [self] in
             if configuredDeviceID != deviceID {
                 configure(deviceID: deviceID)
             }
             if !session.isRunning { session.startRunning() }
+            let isRunning = session.isRunning
+            completion(isRunning)
         }
     }
 
