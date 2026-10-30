@@ -10,9 +10,14 @@ import AppKit
 final class BrowserSource: MusicSource {
     private static let pollWhilePlaying: Duration = .seconds(2)
     private static let pollIdle: Duration = .seconds(5)
+    /// Faster while an ad plays, so auto-skip reacts soon after the button appears.
+    private static let pollDuringAd: Duration = .seconds(1)
     /// How long to leave a tab alone after it didn't answer (e.g. a tab the
     /// browser put to sleep), so it doesn't stall every poll.
     private static let unresponsiveBackoff: TimeInterval = 60
+    /// Keep showing the last track this long when a poll fails (the browser
+    /// was busy), instead of flashing "Nothing playing".
+    private static let failureGrace: TimeInterval = 15
 
     let kind = MusicSourceKind.browser
     let displayName: String
@@ -27,6 +32,7 @@ final class BrowserSource: MusicSource {
     private var tab: BrowserTab?
     /// Tab id literals that timed out, and when.
     private var unresponsiveTabs: [String: Date] = [:]
+    private var lastSuccess: Date?
 
     init(displayName: String, bundleID: String, runner: AppleScriptRunner = .shared) {
         self.displayName = displayName
@@ -50,7 +56,9 @@ final class BrowserSource: MusicSource {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.poll()
-                let delay = self?.info?.isPlaying == true ? Self.pollWhilePlaying : Self.pollIdle
+                let info = self?.info
+                let delay = info?.isAd == true ? Self.pollDuringAd
+                    : info?.isPlaying == true ? Self.pollWhilePlaying : Self.pollIdle
                 try? await Task.sleep(for: delay)
             }
         }
@@ -77,17 +85,22 @@ final class BrowserSource: MusicSource {
         let result = await runner.run(script, cache: skipping.isEmpty, parse: BrowserScripts.parseTabs)
         switch result {
         case .success(let poll):
+            lastSuccess = now
             for id in poll.timedOut { unresponsiveTabs[id] = now }
             let tabs = poll.tabs
             // Prefer a tab that is actually playing.
             let chosen = tabs.first { $0.isPlaying } ?? tabs.first
             tab = chosen
             update(info: chosen?.info, issue: nil)
+            if chosen?.info.canSkipAd == true, UserDefaults.standard.bool(forKey: SettingsKeys.autoSkipAds) {
+                skipAd()
+            }
         case .failure(.notAuthorized):
             update(info: nil, issue: .notAuthorized)
         case .failure(.javascriptDisabled):
             update(info: nil, issue: .javascriptDisabled)
         case .failure:
+            if let lastSuccess, now.timeIntervalSince(lastSuccess) < Self.failureGrace { return }
             update(info: nil, issue: nil)
         }
     }
@@ -95,6 +108,17 @@ final class BrowserSource: MusicSource {
     func playPause() { run(BrowserScripts.playPauseJS) }
     func nextTrack() { run(BrowserScripts.nextJS) }
     func previousTrack() { run(BrowserScripts.previousJS) }
+    func skipAd() { run(BrowserScripts.skipAdJS) }
+
+    func seek(to position: TimeInterval) {
+        guard var newInfo = info, !newInfo.isAd else { return }
+        // Show the new position right away; the poll after the jump confirms it.
+        newInfo.elapsed = position
+        newInfo.timestamp = Date()
+        tab?.info = newInfo
+        update(info: newInfo, issue: issue)
+        run(BrowserScripts.seekJS(to: position))
+    }
 
     private func run(_ javaScript: String) {
         guard let tab, isRunning else { return }
@@ -125,16 +149,40 @@ nonisolated struct BrowserTab: Sendable {
 }
 
 nonisolated enum BrowserScripts {
-    /// Reads the main <video> and Media Session metadata as JSON.
+    /// YouTube's "Skip ad" button; the class name has changed over the years.
+    static let skipButtonSelector = ".ytp-skip-ad-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button"
+
+    /// Reads the main <video> and Media Session metadata as JSON, plus
+    /// whether an ad is showing and can be skipped.
     /// Uses single quotes only, so it can sit inside an AppleScript string.
     static let readJS = """
     (function(){var v=document.querySelector('video.html5-main-video')||document.querySelector('video');\
     if(!v)return '';var m=navigator.mediaSession&&navigator.mediaSession.metadata;var a='';\
     if(m&&m.artwork&&m.artwork.length){a=m.artwork[m.artwork.length-1].src;}\
+    var pl=document.getElementById('movie_player');var ad=!!(pl&&pl.classList.contains('ad-showing'));\
+    var sb=document.querySelector('\(skipButtonSelector)');\
     return JSON.stringify({ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
     ar:(m&&m.artist)?m.artist:'',al:(m&&m.album)?m.album:'',art:a,t:v.currentTime||0,\
-    d:isFinite(v.duration)?v.duration:0,p:v.paused});})()
+    d:isFinite(v.duration)?v.duration:0,p:v.paused,ad:ad,sk:ad&&!!sb&&sb.offsetParent!==null});})()
     """
+
+    /// YouTube ignores script clicks on its Skip button (they aren't
+    /// "trusted"), so if the ad is still showing, jump to its end. Only runs
+    /// while the Skip button is visible, so unskippable ads are left alone.
+    static let skipAdJS = """
+    (function(){var b=document.querySelector('\(skipButtonSelector)');if(!b||b.offsetParent===null)return '';\
+    b.click();var pl=document.getElementById('movie_player');\
+    var v=document.querySelector('video.html5-main-video')||document.querySelector('video');\
+    if(pl&&pl.classList.contains('ad-showing')&&v&&isFinite(v.duration)&&v.duration>0){v.currentTime=v.duration;}\
+    return '';})()
+    """
+
+    static func seekJS(to position: TimeInterval) -> String {
+        """
+        (function(){var v=document.querySelector('video.html5-main-video')||document.querySelector('video');\
+        if(v)v.currentTime=\(String(format: "%.2f", max(0, position)));return '';})()
+        """
+    }
 
     static let playPauseJS = """
     (function(){var v=document.querySelector('video.html5-main-video')||document.querySelector('video');\
@@ -160,6 +208,8 @@ nonisolated enum BrowserScripts {
     static func pollScript(bundleID: String, skipping: [String] = []) -> String {
         """
         tell application id "\(bundleID)"
+            -- Each event; AppleScript's default would block for two minutes.
+            with timeout of \(eventTimeout) seconds
             set skipIDs to {\(skipping.joined(separator: ", "))}
             set out to {}
             repeat with w in windows
@@ -188,6 +238,7 @@ nonisolated enum BrowserScripts {
                 end repeat
             end repeat
             return out
+            end timeout
         end tell
         """
     }
@@ -195,10 +246,15 @@ nonisolated enum BrowserScripts {
     static func executeScript(bundleID: String, tab: BrowserTab, javaScript: String) -> String {
         """
         tell application id "\(bundleID)"
+            with timeout of \(eventTimeout) seconds
             execute (tab id \(tab.tabIDLiteral) of window id \(tab.windowIDLiteral)) javascript "\(javaScript.appleScriptEscaped)"
+            end timeout
         end tell
         """
     }
+
+    /// Seconds any single Apple Event to the browser may take.
+    static let eventTimeout = 5
 
     static let timeoutMarker = "__notchisland_timeout__"
 
@@ -233,6 +289,8 @@ nonisolated enum BrowserScripts {
         var t: Double
         var d: Double
         var p: Bool
+        var ad: Bool?
+        var sk: Bool?
     }
 
     static func parseInfo(json: String, url: String) -> NowPlayingInfo? {
@@ -255,7 +313,9 @@ nonisolated enum BrowserScripts {
             elapsed: state.t,
             timestamp: Date(),
             isPlaying: !state.p,
-            artworkURL: artwork
+            artworkURL: artwork,
+            isAd: state.ad ?? false,
+            canSkipAd: state.sk ?? false
         )
     }
 

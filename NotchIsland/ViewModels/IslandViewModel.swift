@@ -11,6 +11,8 @@ final class IslandViewModel: ObservableObject {
     @Published var isSuppressed = false
     /// Mirrors `LyricsService.currentLine`; drives the `.lyric` idle state.
     @Published var lyricLine: String?
+    /// Mirrors `LyricMoodService.mood`; styles the lyric strip.
+    @Published var lyricMood: LyricMood = .neutral
 
     let battery: BatteryService
     let systemStats: SystemStatsService
@@ -20,6 +22,7 @@ final class IslandViewModel: ObservableObject {
     let projects: ProjectsService
     let storage: StorageService
     let nowPlaying: NowPlayingService
+    let lyricMoods: LyricMoodService
 
     /// Width of each "ear" next to the notch in the hover state.
     static let earWidth: CGFloat = 96
@@ -37,7 +40,8 @@ final class IslandViewModel: ObservableObject {
         shelf: ShelfService,
         projects: ProjectsService,
         storage: StorageService,
-        nowPlaying: NowPlayingService
+        nowPlaying: NowPlayingService,
+        lyricMoods: LyricMoodService
     ) {
         self.battery = battery
         self.systemStats = systemStats
@@ -47,6 +51,7 @@ final class IslandViewModel: ObservableObject {
         self.projects = projects
         self.storage = storage
         self.nowPlaying = nowPlaying
+        self.lyricMoods = lyricMoods
     }
 
     /// What to show when nobody is hovering.
@@ -83,6 +88,16 @@ final class IslandViewModel: ObservableObject {
         geometry?.notchSize ?? CGSize(width: NotchGeometry.fallbackNotchWidth, height: 32)
     }
 
+    /// The notch as drawn while idle: the physical notch plus the extra
+    /// width and height set in Settings. It can't be smaller than the notch.
+    var idleNotchSize: CGSize {
+        let defaults = UserDefaults.standard
+        return CGSize(
+            width: notchSize.width + max(0, defaults.double(forKey: SettingsKeys.idleExtraWidth)),
+            height: notchSize.height + max(0, defaults.double(forKey: SettingsKeys.idleExtraHeight))
+        )
+    }
+
     var lyricStripHeight: CGFloat {
         let stored = UserDefaults.standard.double(forKey: SettingsKeys.lyricStripHeight)
         return stored > 0 ? stored : SettingsKeys.defaultLyricStripHeight
@@ -95,17 +110,19 @@ final class IslandViewModel: ObservableObject {
     /// Size of the black shape (excluding the small top flares) for a state.
     func size(for state: IslandState) -> CGSize {
         let notch = notchSize
+        let idle = idleNotchSize
         switch state {
         case .collapsed:
-            return notch
+            return idle
         case .playing:
-            return CGSize(width: notch.width + Self.idleEarWidth * 2, height: notch.height)
+            return CGSize(width: idle.width + Self.idleEarWidth * 2, height: idle.height)
         case .lyric:
-            let textWidth = lyricLine.map(LyricStripView.textWidth) ?? 0
-            let width = min(maxLyricWidth, max(notch.width + Self.idleEarWidth * 2, textWidth))
-            return CGSize(width: width, height: notch.height + lyricStripHeight)
+            let textWidth = lyricLine.map { LyricStripView.textWidth($0, mood: lyricMood) } ?? 0
+            let width = min(maxLyricWidth, max(idle.width + Self.idleEarWidth * 2, textWidth))
+            return CGSize(width: width, height: idle.height + lyricStripHeight)
         case .hover:
-            return CGSize(width: notch.width + Self.earWidth * 2, height: notch.height)
+            // Never smaller than the idle shape it grows out of.
+            return CGSize(width: max(notch.width + Self.earWidth * 2, idle.width), height: idle.height)
         case .expanded:
             return CGSize(
                 width: max(Self.expandedBaseSize.width, notch.width + Self.earWidth * 2),

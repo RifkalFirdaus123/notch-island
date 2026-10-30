@@ -10,6 +10,8 @@ final class LyricsService: ObservableObject {
 
     /// Show each line slightly early so it doesn't feel late.
     private static let lead: TimeInterval = 0.25
+    /// Wait before each retry after a failed lookup; nil means give up.
+    private static let retryDelays: [Duration?] = [.seconds(2), .seconds(5), .seconds(15), .seconds(30), nil]
 
     private let nowPlaying: NowPlayingService
     private let provider: LyricsProviding
@@ -54,7 +56,8 @@ final class LyricsService: ObservableObject {
     }
 
     private func handle(_ info: NowPlayingInfo?, source: String?) {
-        guard isEnabled, let info else {
+        // During an ad the duration and position are the ad's, not the song's.
+        guard isEnabled, let info, !info.isAd else {
             loadTask?.cancel()
             tickTask?.cancel()
             loadedKey = nil
@@ -82,16 +85,22 @@ final class LyricsService: ObservableObject {
     private func load(_ query: LyricQuery) {
         loadTask?.cancel()
         loadTask = Task { [weak self, provider, cache] in
-            let lrc: String?
+            var lrc: String?
             if let cached = cache.lookup(query.cacheKey) {
                 lrc = cached
             } else {
-                do {
-                    lrc = try await provider.syncedLyrics(for: query)
-                    cache.store(lrc, for: query.cacheKey)
-                } catch {
-                    // Network trouble: try again next time this song comes up.
-                    lrc = nil
+                // LRCLIB sometimes answers 429 or 5xx; the same song won't
+                // be asked for again until it changes, so retry here.
+                for delay in Self.retryDelays {
+                    do {
+                        lrc = try await provider.syncedLyrics(for: query)
+                        cache.store(lrc, for: query.cacheKey)
+                        break
+                    } catch {
+                        guard let delay else { break }
+                        try? await Task.sleep(for: delay)
+                        if Task.isCancelled { return }
+                    }
                 }
             }
             guard !Task.isCancelled, let self, self.loadedKey == query.cacheKey else { return }

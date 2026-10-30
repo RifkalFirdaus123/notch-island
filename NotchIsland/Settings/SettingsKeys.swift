@@ -17,8 +17,18 @@ enum SettingsKeys {
     static let projectsEditor = "projectsEditor"
     static let featureStorage = "featureStorage"
     static let featureLyrics = "featureLyrics"
+    /// Color and style lyrics by the song's mood (calm, hard, upbeat).
+    static let lyricMoodStyle = "lyricMoodStyle"
+    /// Moods picked by hand, keyed by song ("artist|title").
+    static let lyricMoodOverrides = "lyricMoodOverrides"
     /// Height of the lyric strip under the notch, in points.
     static let lyricStripHeight = "lyricStripHeight"
+
+    /// Points added to the idle island's width and height, beyond the notch.
+    static let idleExtraWidth = "idleExtraWidth"
+    static let idleExtraHeight = "idleExtraHeight"
+    /// Press YouTube's "Skip ad" button as soon as it appears.
+    static let autoSkipAds = "autoSkipAds"
 
     static let musicSpotify = "musicSpotify"
     static let musicAppleMusic = "musicAppleMusic"
@@ -37,7 +47,11 @@ enum SettingsKeys {
             projectsEditor: "antigravity",
             featureStorage: true,
             featureLyrics: true,
+            lyricMoodStyle: false,
             lyricStripHeight: defaultLyricStripHeight,
+            idleExtraWidth: 0.0,
+            idleExtraHeight: 0.0,
+            autoSkipAds: true,
             musicSpotify: true,
             musicAppleMusic: true,
             musicBrowser: true,
