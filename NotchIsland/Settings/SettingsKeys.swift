@@ -33,7 +33,7 @@ enum SettingsKeys {
             featureShelf: true,
             featureProjects: true,
             projectsFolder: "",
-            projectsEditor: "vscode",
+            projectsEditor: "antigravity",
             featureLyrics: true,
             lyricStripHeight: defaultLyricStripHeight,
             musicSpotify: true,

@@ -42,7 +42,7 @@ final class ProjectsService: ObservableObject {
 
     var selectedEditor: ProjectEditor {
         let stored = UserDefaults.standard.string(forKey: SettingsKeys.projectsEditor) ?? ""
-        return ProjectEditor(rawValue: stored) ?? .vscode
+        return ProjectEditor(rawValue: stored) ?? .antigravity
     }
 
     static var defaultFolder: String {

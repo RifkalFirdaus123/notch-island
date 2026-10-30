@@ -10,7 +10,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
-    @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.vscode.rawValue
+    @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
@@ -144,7 +144,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 450, maxWidth: .infinity, minHeight: 380, maxHeight: .infinity)
+        .frame(width: 480)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var appVersion: String {
@@ -204,14 +205,9 @@ final class SettingsWindowController {
             let hosting = NSHostingController(rootView: makeView())
             let window = NSWindow(contentViewController: hosting)
             window.title = String(localized: "NotchIsland Settings")
-            window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+            window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
-            window.minSize = CGSize(width: 450, height: 380)
-            window.setContentSize(CGSize(width: 500, height: 580))
-            window.setFrameAutosaveName("NotchIslandSettings")
-            if !window.setFrameUsingName("NotchIslandSettings") {
-                window.center()
-            }
+            window.center()
             self.window = window
         }
         NSApp.activate()
