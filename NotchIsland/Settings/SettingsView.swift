@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
+    @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
@@ -51,6 +52,7 @@ struct SettingsView: View {
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
+                Toggle("Storage tab", isOn: $storageEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
                 LabeledContent("Lyric strip height") {
                     HStack {

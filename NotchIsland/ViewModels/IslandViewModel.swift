@@ -17,13 +17,14 @@ final class IslandViewModel: ObservableObject {
     let camera: CameraService
     let shelf: ShelfService
     let projects: ProjectsService
+    let storage: StorageService
     let nowPlaying: NowPlayingService
 
     /// Width of each "ear" next to the notch in the hover state.
     static let earWidth: CGFloat = 96
     /// Narrower ears for the idle now-playing row.
     static let idleEarWidth: CGFloat = 42
-    static let expandedBaseSize = CGSize(width: 420, height: 180)
+    static let expandedBaseSize = CGSize(width: 460, height: 180)
     /// The lyric strip may grow to this fraction of the screen width.
     static let maxLyricWidthFraction: CGFloat = 0.6
 
@@ -34,6 +35,7 @@ final class IslandViewModel: ObservableObject {
         camera: CameraService,
         shelf: ShelfService,
         projects: ProjectsService,
+        storage: StorageService,
         nowPlaying: NowPlayingService
     ) {
         self.battery = battery
@@ -42,6 +44,7 @@ final class IslandViewModel: ObservableObject {
         self.camera = camera
         self.shelf = shelf
         self.projects = projects
+        self.storage = storage
         self.nowPlaying = nowPlaying
     }
 
@@ -59,6 +62,7 @@ final class IslandViewModel: ObservableObject {
             case .camera: UserDefaults.standard.bool(forKey: SettingsKeys.featureCamera)
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
             case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
+            case .storage: UserDefaults.standard.bool(forKey: SettingsKeys.featureStorage)
             }
         }
     }

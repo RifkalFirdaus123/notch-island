@@ -10,6 +10,14 @@ struct SystemStats: Equatable {
     /// Degrees Celsius; nil when the sensors can't be read.
     var cpuTemperature: Double?
     var batteryTemperature: Double?
+    /// Startup volume, in bytes. "Used" counts purgeable space as free, the
+    /// way Finder and System Settings › Storage do. Nil when it can't be read.
+    var storage: (used: Int64, total: Int64)? {
+        guard let storageTotal, let storageUsed else { return nil }
+        return (storageUsed, storageTotal)
+    }
+    var storageUsed: Int64?
+    var storageTotal: Int64?
 
     var memoryFraction: Double {
         memoryTotal > 0 ? Double(memoryUsed) / Double(memoryTotal) : 0
@@ -79,13 +87,27 @@ final class MachSystemStatsSource: SystemStatsSource {
     func currentStats() -> SystemStats {
         let memory = memoryUsage()
         let sensors = temperatures.read()
+        let storage = storageUsage()
         return SystemStats(
             cpuUsage: cpuUsage(),
             memoryUsed: memory.used,
             memoryTotal: memory.total,
             cpuTemperature: sensors.cpu,
-            batteryTemperature: sensors.battery
+            batteryTemperature: sensors.battery,
+            storageUsed: storage?.used,
+            storageTotal: storage?.total
         )
+    }
+
+    /// Startup volume usage, with purgeable space counted as available.
+    private func storageUsage() -> (used: Int64, total: Int64)? {
+        let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
+        guard let values = try? URL(fileURLWithPath: "/").resourceValues(forKeys: keys),
+              let total = values.volumeTotalCapacity.map(Int64.init),
+              let available = values.volumeAvailableCapacityForImportantUsage,
+              total > 0
+        else { return nil }
+        return (max(0, total - available), total)
     }
 
     /// Busy share of the ticks elapsed since the last call; nil on the first.

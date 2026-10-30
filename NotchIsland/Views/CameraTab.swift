@@ -10,7 +10,7 @@ struct CameraTabView: View {
         ZStack {
             switch camera.state {
             case .running:
-                CameraPreview(session: camera.session)
+                CameraPreview(capture: camera.capture)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .aspectRatio(4 / 3, contentMode: .fit)
             case .idle, .requestingAccess:
@@ -57,10 +57,10 @@ private struct CameraMessageView: View {
 }
 
 private struct CameraPreview: NSViewRepresentable {
-    let session: AVCaptureSession
+    let capture: CaptureSessionController
 
     func makeNSView(context: Context) -> PreviewView {
-        PreviewView(session: session)
+        PreviewView(previewLayer: capture.previewLayer)
     }
 
     func updateNSView(_ nsView: PreviewView, context: Context) {}
@@ -69,9 +69,10 @@ private struct CameraPreview: NSViewRepresentable {
 private final class PreviewView: NSView {
     private let previewLayer: AVCaptureVideoPreviewLayer
 
-    init(session: AVCaptureSession) {
-        previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.videoGravity = .resizeAspectFill
+    /// The layer is shared and reused; adding it here moves it out of any
+    /// previous preview view.
+    init(previewLayer: AVCaptureVideoPreviewLayer) {
+        self.previewLayer = previewLayer
         super.init(frame: .zero)
         wantsLayer = true
         layer = CALayer()
@@ -82,7 +83,7 @@ private final class PreviewView: NSView {
             self,
             selector: #selector(sessionDidStartRunning),
             name: AVCaptureSession.didStartRunningNotification,
-            object: session
+            object: previewLayer.session
         )
     }
 
@@ -105,16 +106,12 @@ private final class PreviewView: NSView {
         CATransaction.commit()
     }
 
-    /// Show the image like a mirror, via the connection when supported and
-    /// by flipping the layer otherwise.
+    /// The connection is mirrored on the capture queue when supported (see
+    /// `CaptureSessionController.configure`); otherwise flip the layer.
     private func applyMirroring() {
         guard let connection = previewLayer.connection else { return }
-        if connection.isVideoMirroringSupported {
-            connection.automaticallyAdjustsVideoMirroring = false
-            connection.isVideoMirrored = true
-            previewLayer.setAffineTransform(.identity)
-        } else {
-            previewLayer.setAffineTransform(CGAffineTransform(scaleX: -1, y: 1))
-        }
+        previewLayer.setAffineTransform(
+            connection.isVideoMirroringSupported ? .identity : CGAffineTransform(scaleX: -1, y: 1)
+        )
     }
 }

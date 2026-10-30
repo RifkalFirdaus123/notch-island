@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             camera: CameraService(),
             shelf: shelf,
             projects: ProjectsService(),
+            storage: StorageService(),
             nowPlaying: nowPlaying
         )
         lyrics.$currentLine
