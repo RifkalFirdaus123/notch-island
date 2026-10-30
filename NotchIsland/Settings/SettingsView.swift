@@ -146,8 +146,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        // Fixed height; the grouped form scrolls when its content is taller.
+        .frame(width: 480, height: 560)
     }
 
     private var appVersion: String {
