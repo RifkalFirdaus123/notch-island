@@ -23,6 +23,7 @@ protocol SystemStatsSource: AnyObject {
 
 /// Polls CPU, memory and temperatures, but only while a view showing them
 /// is on screen, so the app stays idle the rest of the time.
+@MainActor
 final class SystemStatsService: ObservableObject {
     @Published private(set) var stats: SystemStats?
     /// The system's own throttling level; drives the temperature tint.
@@ -42,7 +43,7 @@ final class SystemStatsService: ObservableObject {
     func beginObserving() {
         viewers += 1
         guard pollTask == nil else { return }
-        pollTask = Task { [weak self] in
+        pollTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 self?.refresh()
                 try? await Task.sleep(for: Self.pollInterval)
@@ -92,11 +93,13 @@ final class MachSystemStatsSource: SystemStatsSource {
     private func cpuUsage() -> Int? {
         var info = host_cpu_load_info()
         var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
+        let hostPort = mach_host_self()
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
+                host_statistics(hostPort, HOST_CPU_LOAD_INFO, $0, &count)
             }
         }
+        mach_port_deallocate(mach_task_self_, hostPort)
         guard result == KERN_SUCCESS else { return nil }
 
         let ticks = [info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.2, info.cpu_ticks.3]
@@ -116,11 +119,13 @@ final class MachSystemStatsSource: SystemStatsSource {
         let total = ProcessInfo.processInfo.physicalMemory
         var info = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
+        let hostPort = mach_host_self()
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+                host_statistics64(hostPort, HOST_VM_INFO64, $0, &count)
             }
         }
+        mach_port_deallocate(mach_task_self_, hostPort)
         guard result == KERN_SUCCESS else { return (0, total) }
 
         let appPages = UInt64(info.internal_page_count) - UInt64(min(info.purgeable_count, info.internal_page_count))

@@ -13,6 +13,8 @@ enum SettingsKeys {
     static let featureProjects = "featureProjects"
     /// Folder listed in the Projects tab; empty means ~/Documents/hotama.
     static let projectsFolder = "projectsFolder"
+    /// Default application used to open projects ("vscode", "antigravity", "finder").
+    static let projectsEditor = "projectsEditor"
     static let featureLyrics = "featureLyrics"
     /// Height of the lyric strip under the notch, in points.
     static let lyricStripHeight = "lyricStripHeight"
@@ -31,6 +33,7 @@ enum SettingsKeys {
             featureShelf: true,
             featureProjects: true,
             projectsFolder: "",
+            projectsEditor: "antigravity",
             featureLyrics: true,
             lyricStripHeight: defaultLyricStripHeight,
             musicSpotify: true,

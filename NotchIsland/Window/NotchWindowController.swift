@@ -9,6 +9,7 @@ import SwiftUI
 /// NSTrackingArea, because the panel ignores mouse events while collapsed
 /// (so clicks reach the menu bar) and tracking areas need the window to
 /// receive events. Mouse-moved monitoring needs no extra permission.
+@MainActor
 final class NotchWindowController {
     private static let expandDelay: Duration = .milliseconds(500)
     private static let collapseDelay: Duration = .milliseconds(400)
@@ -164,7 +165,9 @@ final class NotchWindowController {
     private func installMouseMonitors() {
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDown]
         if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            self?.handle(event)
+            Task { @MainActor [weak self] in
+                self?.handle(event)
+            }
         }) {
             eventMonitors.append(global)
         }
@@ -199,7 +202,7 @@ final class NotchWindowController {
     /// button is held.
     private func watchForDrag() {
         dragWatchTask?.cancel()
-        dragWatchTask = Task { [weak self] in
+        dragWatchTask = Task { @MainActor [weak self] in
             while NSEvent.pressedMouseButtons & 1 != 0, !Task.isCancelled {
                 self?.dragMoved(to: NSEvent.mouseLocation)
                 try? await Task.sleep(for: Self.dragPollInterval)
@@ -256,7 +259,7 @@ final class NotchWindowController {
 
         viewModel.state = .hover
         expandTask?.cancel()
-        expandTask = Task { [weak self] in
+        expandTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: Self.expandDelay)
             guard !Task.isCancelled, let self, self.viewModel.state == .hover else { return }
             self.viewModel.state = .expanded
@@ -266,7 +269,7 @@ final class NotchWindowController {
     private func pointerExited() {
         guard viewModel.state.isOpen, collapseTask == nil else { return }
         expandTask?.cancel()
-        collapseTask = Task { [weak self] in
+        collapseTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: Self.collapseDelay)
             // Closing mid-drag would tear down the item being dragged out.
             while let self, self.mouseDownInPanel, NSEvent.pressedMouseButtons & 1 != 0, !Task.isCancelled {

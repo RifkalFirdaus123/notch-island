@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
+    @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
@@ -90,6 +91,11 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Open With", selection: $projectsEditor) {
+                    ForEach(ProjectEditor.allCases) { editor in
+                        Text(editor.displayName).tag(editor.rawValue)
+                    }
+                }
                 LabeledContent("Folder") {
                     HStack {
                         Text(verbatim: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
@@ -102,7 +108,7 @@ struct SettingsView: View {
             } header: {
                 Text("Projects")
             } footer: {
-                Text("Folders and .code-workspace files here open in Antigravity.")
+                Text("Folders and .code-workspace files open in the selected app.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -112,10 +118,42 @@ struct SettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                HStack(spacing: 12) {
+                    if let icon = NSApp.applicationIconImage {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 32, height: 32)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("NotchIsland")
+                            .font(.headline)
+                        Text("Version \(appVersion) (\(appBuild))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let url = URL(string: "https://github.com/RifkalFirdaus123/notch-island") {
+                        Link("GitHub", destination: url)
+                            .font(.callout)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
+    }
+
+    private var appBuild: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 
     private var issueMessages: [String] {

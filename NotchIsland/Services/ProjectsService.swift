@@ -1,6 +1,30 @@
 import AppKit
 import Combine
 
+enum ProjectEditor: String, CaseIterable, Identifiable {
+    case vscode = "vscode"
+    case antigravity = "antigravity"
+    case finder = "finder"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .vscode: return "Visual Studio Code"
+        case .antigravity: return "Antigravity"
+        case .finder: return String(localized: "Finder (Folder)")
+        }
+    }
+
+    var bundleIdentifier: String? {
+        switch self {
+        case .vscode: return "com.microsoft.VSCode"
+        case .antigravity: return "com.google.antigravity-ide"
+        case .finder: return nil
+        }
+    }
+}
+
 struct ProjectItem: Identifiable, Equatable {
     let url: URL
     /// A `.code-workspace` file rather than a plain folder.
@@ -11,12 +35,15 @@ struct ProjectItem: Identifiable, Equatable {
 }
 
 /// Lists the folders and workspaces in the projects folder and opens them in
-/// Antigravity.
+/// the selected editor (VS Code, Antigravity, or Finder).
 final class ProjectsService: ObservableObject {
     @Published private(set) var items: [ProjectItem] = []
     @Published private(set) var errorMessage: String?
 
-    static let editorBundleIdentifier = "com.google.antigravity-ide"
+    var selectedEditor: ProjectEditor {
+        let stored = UserDefaults.standard.string(forKey: SettingsKeys.projectsEditor) ?? ""
+        return ProjectEditor(rawValue: stored) ?? .antigravity
+    }
 
     static var defaultFolder: String {
         FileManager.default.homeDirectoryForCurrentUser
@@ -55,19 +82,29 @@ final class ProjectsService: ObservableObject {
         }
     }
 
-    var editorURL: URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.editorBundleIdentifier)
+    func editorURL(for editor: ProjectEditor) -> URL? {
+        guard let bundleID = editor.bundleIdentifier else { return nil }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
     }
 
-    func open(_ item: ProjectItem) {
-        guard let editorURL else {
-            errorMessage = String(localized: "Antigravity is not installed.")
-            return
-        }
-        NSWorkspace.shared.open(
-            [item.url], withApplicationAt: editorURL, configuration: NSWorkspace.OpenConfiguration()
-        ) { _, error in
-            if let error { NSLog("NotchIsland: failed to open \(item.url.path): \(error)") }
+    func open(_ item: ProjectItem, with editor: ProjectEditor? = nil) {
+        let target = editor ?? selectedEditor
+        switch target {
+        case .finder:
+            errorMessage = nil
+            NSWorkspace.shared.open(item.url)
+        case .vscode, .antigravity:
+            guard let appURL = editorURL(for: target) else {
+                errorMessage = String(localized: "\(target.displayName) is not installed; opened in Finder.")
+                NSWorkspace.shared.open(item.url)
+                return
+            }
+            errorMessage = nil
+            NSWorkspace.shared.open(
+                [item.url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration()
+            ) { _, error in
+                if let error { NSLog("NotchIsland: failed to open \(item.url.path): \(error)") }
+            }
         }
     }
 

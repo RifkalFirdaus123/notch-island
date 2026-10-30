@@ -78,8 +78,23 @@ private struct ProjectRow: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .contextMenu {
-            Button("Open in Antigravity") { projects.open(item) }
-            Button("Show in Finder") { projects.revealInFinder(item) }
+            Button("Open in \(projects.selectedEditor.displayName)") {
+                projects.open(item)
+            }
+            Divider()
+            Button("Open in Visual Studio Code") {
+                projects.open(item, with: .vscode)
+            }
+            Button("Open in Antigravity") {
+                projects.open(item, with: .antigravity)
+            }
+            Button("Open in Finder") {
+                projects.open(item, with: .finder)
+            }
+            Divider()
+            Button("Show in Finder") {
+                projects.revealInFinder(item)
+            }
         }
         .help(Text(verbatim: item.url.path))
     }
