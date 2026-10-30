@@ -4,6 +4,9 @@ struct IslandView: View {
     @ObservedObject var viewModel: IslandViewModel
     // Re-render when the strip height changes in Settings.
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
+    // …and when the idle size changes.
+    @AppStorage(SettingsKeys.idleExtraWidth) private var idleExtraWidth = 0.0
+    @AppStorage(SettingsKeys.idleExtraHeight) private var idleExtraHeight = 0.0
 
     static let animation = Animation.spring(response: 0.3, dampingFraction: 0.8)
 
@@ -41,6 +44,8 @@ struct IslandView: View {
             .animation(Self.animation, value: state)
             .animation(Self.animation, value: viewModel.selectedTab)
             .animation(Self.animation, value: viewModel.lyricLine)
+            .animation(Self.animation, value: idleExtraWidth)
+            .animation(Self.animation, value: idleExtraHeight)
     }
 
     @ViewBuilder
@@ -49,22 +54,23 @@ struct IslandView: View {
         case .collapsed:
             Color.clear
         case .playing:
-            CompactNowPlayingRow(notchSize: viewModel.notchSize, nowPlaying: viewModel.nowPlaying)
+            CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
                 .transition(.opacity)
         case .lyric:
             ZStack(alignment: .top) {
                 LyricStripView(
                     line: viewModel.lyricLine ?? "",
-                    notchHeight: viewModel.notchSize.height,
+                    notchHeight: viewModel.idleNotchSize.height,
                     stripHeight: lyricStripHeight,
-                    tint: .white
+                    mood: viewModel.lyricMood
                 )
-                CompactNowPlayingRow(notchSize: viewModel.notchSize, nowPlaying: viewModel.nowPlaying)
+                CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
             }
             .transition(.opacity)
         case .hover:
             HoverSummaryView(
-                notchSize: viewModel.notchSize,
+                // Physical notch width to clear, idle height to fill.
+                notchSize: CGSize(width: viewModel.notchSize.width, height: viewModel.idleNotchSize.height),
                 clock: viewModel.clock,
                 battery: viewModel.battery,
                 nowPlaying: viewModel.nowPlaying

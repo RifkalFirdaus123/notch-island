@@ -13,7 +13,11 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
+    @AppStorage(SettingsKeys.lyricMoodStyle) private var lyricMoodStyle = false
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
+    @AppStorage(SettingsKeys.idleExtraWidth) private var idleExtraWidth = 0.0
+    @AppStorage(SettingsKeys.idleExtraHeight) private var idleExtraHeight = 0.0
+    @AppStorage(SettingsKeys.autoSkipAds) private var autoSkipAds = true
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
     @AppStorage(SettingsKeys.musicAppleMusic) private var appleMusicEnabled = true
     @AppStorage(SettingsKeys.musicBrowser) private var browserEnabled = true
@@ -49,12 +53,34 @@ struct SettingsView: View {
                 Toggle("Show over fullscreen apps", isOn: $showInFullscreen)
             }
 
+            Section {
+                SizeSlider(title: "Extra width", value: $idleExtraWidth, range: 0...160, step: 2)
+                SizeSlider(title: "Extra height", value: $idleExtraHeight, range: 0...20, step: 1)
+                if idleExtraWidth > 0 || idleExtraHeight > 0 {
+                    Button("Reset to Notch Size") {
+                        idleExtraWidth = 0
+                        idleExtraHeight = 0
+                    }
+                }
+            } header: {
+                Text("Idle Notch")
+            } footer: {
+                Text("How much bigger than the physical notch the island is when idle.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Features") {
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Storage tab", isOn: $storageEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
+                Toggle(isOn: $lyricMoodStyle) {
+                    Text("Mood colors for lyrics")
+                    Text("Blue for calm songs, red for hard ones, yellow for upbeat ones. Change it per song from the mood icon in the Home tab.")
+                }
+                .disabled(!lyricsEnabled)
                 LabeledContent("Lyric strip height") {
                     HStack {
                         Slider(value: $lyricStripHeight, in: 18...40, step: 1)
@@ -71,6 +97,8 @@ struct SettingsView: View {
                 Toggle("Spotify", isOn: $spotifyEnabled)
                 Toggle("Apple Music", isOn: $appleMusicEnabled)
                 Toggle("YouTube in Chrome, Arc, Brave or Edge", isOn: $browserEnabled)
+                Toggle("Skip YouTube ads automatically", isOn: $autoSkipAds)
+                    .disabled(!browserEnabled)
                 ForEach(issueMessages, id: \.self) { message in
                     Label(message, systemImage: "exclamationmark.triangle.fill")
                         .font(.callout)
@@ -79,7 +107,7 @@ struct SettingsView: View {
             } header: {
                 Text("Music Sources")
             } footer: {
-                Text("YouTube needs View › Developer › Allow JavaScript from Apple Events turned on in the browser.")
+                Text("YouTube needs View › Developer › Allow JavaScript from Apple Events turned on in the browser. Auto-skip only presses YouTube's own Skip button once it appears.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -116,7 +144,7 @@ struct SettingsView: View {
             }
 
             Section {
-                Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. The camera picture is never recorded or stored.")
+                Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. With mood colors on, the title and artist are also sent to the iTunes Search API to look up the genre. The camera picture is never recorded or stored.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -189,6 +217,26 @@ struct SettingsView: View {
         }
         launchAtLogin = LaunchAtLogin.isEnabled || LaunchAtLogin.needsApproval
         launchAtLoginNeedsApproval = LaunchAtLogin.needsApproval
+    }
+}
+
+/// A labeled slider with its value in points.
+private struct SizeSlider: View {
+    let title: LocalizedStringKey
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack {
+                Slider(value: $value, in: range, step: step)
+                    .frame(width: 160)
+                Text(verbatim: "+\(Int(value)) pt")
+                    .monospacedDigit()
+                    .frame(width: 44, alignment: .trailing)
+            }
+        }
     }
 }
 

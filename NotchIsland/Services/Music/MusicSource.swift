@@ -15,6 +15,10 @@ nonisolated struct NowPlayingInfo: Equatable, Sendable {
     var timestamp: Date
     var isPlaying: Bool
     var artworkURL: URL?
+    /// An ad is playing (YouTube); `duration` and `elapsed` are the ad's.
+    var isAd = false
+    /// The player shows a "Skip ad" button right now.
+    var canSkipAd = false
 
     func position(at date: Date = Date()) -> TimeInterval {
         guard isPlaying else { return elapsed }
@@ -32,6 +36,8 @@ nonisolated struct NowPlayingInfo: Equatable, Sendable {
             && artist == other.artist
             && isPlaying == other.isPlaying
             && artworkURL == other.artworkURL
+            && isAd == other.isAd
+            && canSkipAd == other.canSkipAd
             && abs(position(at: now) - other.position(at: now)) < tolerance
     }
 }
@@ -76,4 +82,12 @@ protocol MusicSource: AnyObject {
     func playPause()
     func nextTrack()
     func previousTrack()
+    /// Jumps to `position` seconds into the current track.
+    func seek(to position: TimeInterval)
+    /// Presses the player's "Skip ad" button, if it has one.
+    func skipAd()
+}
+
+extension MusicSource {
+    func skipAd() {}
 }

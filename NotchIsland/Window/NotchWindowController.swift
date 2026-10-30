@@ -114,7 +114,7 @@ final class NotchWindowController {
             .sink { [weak self] _ in self?.updateFullscreenSuppression() }
             .store(in: &cancellables)
 
-        // Settings changed: fullscreen option, enabled tabs, strip height.
+        // Settings changed: fullscreen option, enabled tabs, strip height, idle size.
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
@@ -222,8 +222,8 @@ final class NotchWindowController {
     /// Like `activeRegion`, but more generous around the idle notch so a file
     /// dragged *toward* it opens the shelf.
     private func dropRegion() -> CGRect {
-        guard let geometry = viewModel.geometry, !viewModel.state.isOpen else { return activeRegion() }
-        return geometry.notchRect.insetBy(dx: -Self.dropApproachSlop.width, dy: -Self.dropApproachSlop.height)
+        guard viewModel.geometry != nil, !viewModel.state.isOpen else { return activeRegion() }
+        return viewModel.screenRect(for: .collapsed).insetBy(dx: -Self.dropApproachSlop.width, dy: -Self.dropApproachSlop.height)
     }
 
     private func openForDrop() {
@@ -239,13 +239,13 @@ final class NotchWindowController {
     /// Region that counts as "on the island": the notch (plus the now-playing
     /// row beside it) while idle, the visible shape while open.
     private func activeRegion() -> CGRect {
-        guard let geometry = viewModel.geometry else { return .zero }
+        guard viewModel.geometry != nil else { return .zero }
         let rect: CGRect
         switch viewModel.state {
         case .hover, .expanded: rect = viewModel.screenRect(for: viewModel.state)
         // Not the lyric strip itself, so it doesn't open while reading.
         case .playing, .lyric: rect = viewModel.screenRect(for: .playing)
-        case .collapsed: rect = geometry.notchRect
+        case .collapsed: rect = viewModel.screenRect(for: .collapsed)
         }
         // Negative inset also extends past the top edge, so the topmost
         // pixel row is inside.

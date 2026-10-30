@@ -7,10 +7,11 @@ struct HomeTabView: View {
     @ObservedObject var battery: BatteryService
     @ObservedObject var systemStats: SystemStatsService
     let nowPlaying: NowPlayingService
+    let lyricMoods: LyricMoodService
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            NowPlayingView(nowPlaying: nowPlaying)
+            NowPlayingView(nowPlaying: nowPlaying, lyricMoods: lyricMoods)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(clock.now, format: .dateTime.hour().minute())
