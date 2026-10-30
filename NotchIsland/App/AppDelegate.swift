@@ -61,6 +61,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "NotchIsland")
 
         let menu = NSMenu()
+        let about = NSMenuItem(
+            title: String(localized: "About NotchIsland"),
+            action: #selector(showSettings),
+            keyEquivalent: ""
+        )
+        about.target = self
+        menu.addItem(about)
+        menu.addItem(.separator())
+
         let settings = NSMenuItem(
             title: String(localized: "Settings…"),
             action: #selector(showSettings),

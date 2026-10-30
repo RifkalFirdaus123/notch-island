@@ -38,9 +38,12 @@ nonisolated struct LRCLibClient: LyricsProviding {
 
     /// Decoded body, or nil on 404.
     private func request<T: Decodable>(_ path: String, _ items: [URLQueryItem]) async throws -> T? {
-        var components = URLComponents(url: Self.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        guard var components = URLComponents(url: Self.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            return nil
+        }
         components.queryItems = items
-        var request = URLRequest(url: components.url!, timeoutInterval: 10)
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await session.data(for: request)

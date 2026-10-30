@@ -10,10 +10,10 @@ struct CameraTabView: View {
         ZStack {
             switch camera.state {
             case .running:
-                CameraPreview(capture: camera.capture)
+                CameraPreview(previewLayer: camera.previewLayer)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .aspectRatio(4 / 3, contentMode: .fit)
-            case .idle, .requestingAccess:
+            case .idle, .starting, .requestingAccess:
                 ProgressView()
                     .controlSize(.small)
             case .denied:
@@ -57,17 +57,26 @@ private struct CameraMessageView: View {
 }
 
 private struct CameraPreview: NSViewRepresentable {
-    let capture: CaptureSessionController
+    let previewLayer: AVCaptureVideoPreviewLayer
 
     func makeNSView(context: Context) -> PreviewView {
-        PreviewView(previewLayer: capture.previewLayer)
+        PreviewView(previewLayer: previewLayer)
     }
 
-    func updateNSView(_ nsView: PreviewView, context: Context) {}
+    func updateNSView(_ nsView: PreviewView, context: Context) {
+        nsView.previewLayer = previewLayer
+    }
 }
 
 private final class PreviewView: NSView {
-    private let previewLayer: AVCaptureVideoPreviewLayer
+    var previewLayer: AVCaptureVideoPreviewLayer {
+        didSet {
+            if oldValue !== previewLayer {
+                oldValue.removeFromSuperlayer()
+                setupLayer()
+            }
+        }
+    }
 
     /// The layer is shared and reused; adding it here moves it out of any
     /// previous preview view.
@@ -76,20 +85,13 @@ private final class PreviewView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer = CALayer()
-        layer?.addSublayer(previewLayer)
-
-        // The preview connection only exists once the session is running.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sessionDidStartRunning),
-            name: AVCaptureSession.didStartRunningNotification,
-            object: previewLayer.session
-        )
+        setupLayer()
     }
 
-    // Posted on the capture queue.
-    @objc nonisolated private func sessionDidStartRunning(_ notification: Notification) {
-        Task { @MainActor in self.needsLayout = true }
+    private func setupLayer() {
+        previewLayer.removeFromSuperlayer()
+        layer?.addSublayer(previewLayer)
+        needsLayout = true
     }
 
     @available(*, unavailable)

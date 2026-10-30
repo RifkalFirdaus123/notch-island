@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 final class IslandViewModel: ObservableObject {
     @Published var state: IslandState = .collapsed
     @Published private(set) var selectedTab: IslandTab = .home
