@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
+    @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
@@ -52,6 +53,7 @@ struct SettingsView: View {
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
+                Toggle("Storage tab", isOn: $storageEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
                 LabeledContent("Lyric strip height") {
                     HStack {
@@ -144,8 +146,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        // Fixed height; the grouped form scrolls when its content is taller.
+        .frame(width: 480, height: 560)
     }
 
     private var appVersion: String {

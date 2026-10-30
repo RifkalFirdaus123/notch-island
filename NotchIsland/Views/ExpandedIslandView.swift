@@ -58,6 +58,8 @@ struct ExpandedIslandView: View {
             ShelfTabView(shelf: viewModel.shelf)
         case .projects:
             ProjectsTabView(projects: viewModel.projects)
+        case .storage:
+            StorageTabView(storage: viewModel.storage)
         }
     }
 }

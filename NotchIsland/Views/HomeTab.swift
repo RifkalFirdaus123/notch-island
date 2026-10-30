@@ -43,7 +43,7 @@ struct HomeTabView: View {
     }
 }
 
-/// CPU load and temperature, then memory in use.
+/// CPU load and temperature, then memory and startup disk in use.
 struct SystemStatsView: View {
     let stats: SystemStats
     let thermalState: ProcessInfo.ThermalState
@@ -67,6 +67,15 @@ struct SystemStatsView: View {
                 Text(verbatim: memoryText)
                     .contentTransition(.numericText())
             }
+            if let storage = stats.storage {
+                HStack(spacing: 5) {
+                    Text(verbatim: "SSD")
+                        .foregroundStyle(.white.opacity(0.5))
+                    Text(verbatim: storageText(used: storage.used, total: storage.total))
+                        .foregroundStyle(storageTint(used: storage.used, total: storage.total))
+                        .contentTransition(.numericText())
+                }
+            }
         }
         .font(.system(size: 11, weight: .semibold))
         .monospacedDigit()
@@ -79,6 +88,24 @@ struct SystemStatsView: View {
         let used = Double(stats.memoryUsed) / Self.bytesPerGB
         let total = (Double(stats.memoryTotal) / Self.bytesPerGB).rounded()
         return "\(used.formatted(.number.precision(.fractionLength(1)))) / \(Int(total)) GB"
+    }
+
+    /// Decimal units, matching how Finder and System Settings report disks.
+    private func storageText(used: Int64, total: Int64) -> String {
+        let usedGB = Double(used) / 1e9
+        let totalGB = Double(total) / 1e9
+        let totalText = totalGB >= 1000
+            ? "\((totalGB / 1000).formatted(.number.precision(.fractionLength(0...1)))) TB"
+            : "\(Int(totalGB.rounded())) GB"
+        return "\(Int(usedGB.rounded())) GB / \(totalText)"
+    }
+
+    /// Warn as the disk fills up: macOS slows down with little free space.
+    private func storageTint(used: Int64, total: Int64) -> Color {
+        let fraction = Double(used) / Double(total)
+        if fraction >= 0.95 { return .red }
+        if fraction >= 0.85 { return .orange }
+        return .white
     }
 
     /// The system's thermal state wins: it reflects actual throttling.

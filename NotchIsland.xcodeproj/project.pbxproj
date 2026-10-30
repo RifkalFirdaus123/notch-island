@@ -259,7 +259,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NotchIsland;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, and controls playback.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, controls playback, and asks Finder to empty the Trash from the Storage tab.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "NotchIsland shows a live camera mirror in the Camera tab. Video is never recorded or sent anywhere.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -290,7 +290,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NotchIsland;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, and controls playback.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, controls playback, and asks Finder to empty the Trash from the Storage tab.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "NotchIsland shows a live camera mirror in the Camera tab. Video is never recorded or sent anywhere.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

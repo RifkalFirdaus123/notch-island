@@ -15,6 +15,7 @@ enum SettingsKeys {
     static let projectsFolder = "projectsFolder"
     /// Default application used to open projects ("vscode", "antigravity", "finder").
     static let projectsEditor = "projectsEditor"
+    static let featureStorage = "featureStorage"
     static let featureLyrics = "featureLyrics"
     /// Height of the lyric strip under the notch, in points.
     static let lyricStripHeight = "lyricStripHeight"
@@ -34,6 +35,7 @@ enum SettingsKeys {
             featureProjects: true,
             projectsFolder: "",
             projectsEditor: "antigravity",
+            featureStorage: true,
             featureLyrics: true,
             lyricStripHeight: defaultLyricStripHeight,
             musicSpotify: true,

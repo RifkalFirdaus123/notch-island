@@ -22,13 +22,13 @@
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "NotchIsland membaca lagu yang sedang diputar dari Spotify, Music, dan YouTube di browser, serta mengontrol pemutarannya."
+            "value": "NotchIsland membaca lagu yang sedang diputar dari Spotify, Music, dan YouTube di browser, mengontrol pemutarannya, serta meminta Finder mengosongkan Tong Sampah dari tab Penyimpanan."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, and controls playback."
+            "value": "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, controls playback, and asks Finder to empty the Trash from the Storage tab."
           }
         }
       }

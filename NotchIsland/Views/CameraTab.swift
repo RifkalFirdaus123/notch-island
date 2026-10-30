@@ -78,6 +78,8 @@ private final class PreviewView: NSView {
         }
     }
 
+    /// The layer is shared and reused; adding it here moves it out of any
+    /// previous preview view.
     init(previewLayer: AVCaptureVideoPreviewLayer) {
         self.previewLayer = previewLayer
         super.init(frame: .zero)
@@ -106,16 +108,12 @@ private final class PreviewView: NSView {
         CATransaction.commit()
     }
 
-    /// Show the image like a mirror, via the connection when supported and
-    /// by flipping the layer otherwise.
+    /// The connection is mirrored on the capture queue when supported (see
+    /// `CaptureSessionController.configure`); otherwise flip the layer.
     private func applyMirroring() {
         guard let connection = previewLayer.connection else { return }
-        if connection.isVideoMirroringSupported {
-            connection.automaticallyAdjustsVideoMirroring = false
-            connection.isVideoMirrored = true
-            previewLayer.setAffineTransform(.identity)
-        } else {
-            previewLayer.setAffineTransform(CGAffineTransform(scaleX: -1, y: 1))
-        }
+        previewLayer.setAffineTransform(
+            connection.isVideoMirroringSupported ? .identity : CGAffineTransform(scaleX: -1, y: 1)
+        )
     }
 }

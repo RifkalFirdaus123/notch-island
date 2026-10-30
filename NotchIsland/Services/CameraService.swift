@@ -88,6 +88,10 @@ final class CameraService: ObservableObject {
 /// since starting/stopping blocks.
 nonisolated final class CaptureSessionController: @unchecked Sendable {
     let session = AVCaptureSession()
+    /// One preview layer for the app's lifetime, attached before the session
+    /// ever runs. Creating or freeing a preview layer adds or removes a session
+    /// connection, and doing that while `startRunning()` is in progress on the
+    /// capture queue crashes with a collection-mutated-while-enumerated error.
     let previewLayer: AVCaptureVideoPreviewLayer
     private let queue = DispatchQueue(label: "NotchIsland.camera")
     private var configuredDeviceID: String?
@@ -131,5 +135,12 @@ nonisolated final class CaptureSessionController: @unchecked Sendable {
             session.sessionPreset = .medium
         }
         session.commitConfiguration()
+
+        // Show the image like a mirror. Done here, on the capture queue, so the
+        // connection is never changed while the session is starting.
+        if let connection = previewLayer.connection, connection.isVideoMirroringSupported {
+            connection.automaticallyAdjustsVideoMirroring = false
+            connection.isVideoMirrored = true
+        }
     }
 }
