@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
+    @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.vscode.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
@@ -90,6 +91,11 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Open With", selection: $projectsEditor) {
+                    ForEach(ProjectEditor.allCases) { editor in
+                        Text(editor.displayName).tag(editor.rawValue)
+                    }
+                }
                 LabeledContent("Folder") {
                     HStack {
                         Text(verbatim: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
@@ -102,7 +108,7 @@ struct SettingsView: View {
             } header: {
                 Text("Projects")
             } footer: {
-                Text("Folders and .code-workspace files here open in Antigravity.")
+                Text("Folders and .code-workspace files open in the selected app.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
