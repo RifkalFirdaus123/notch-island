@@ -112,10 +112,41 @@ struct SettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                HStack(spacing: 12) {
+                    if let icon = NSApp.applicationIconImage {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 32, height: 32)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("NotchIsland")
+                            .font(.headline)
+                        Text("Version \(appVersion) (\(appBuild))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let url = URL(string: "https://github.com/RifkalFirdaus123/notch-island") {
+                        Link("GitHub", destination: url)
+                            .font(.callout)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(minWidth: 450, maxWidth: .infinity, minHeight: 380, maxHeight: .infinity)
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
+    }
+
+    private var appBuild: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 
     private var issueMessages: [String] {
@@ -167,9 +198,14 @@ final class SettingsWindowController {
             let hosting = NSHostingController(rootView: makeView())
             let window = NSWindow(contentViewController: hosting)
             window.title = String(localized: "NotchIsland Settings")
-            window.styleMask = [.titled, .closable]
+            window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
             window.isReleasedWhenClosed = false
-            window.center()
+            window.minSize = CGSize(width: 450, height: 380)
+            window.setContentSize(CGSize(width: 500, height: 580))
+            window.setFrameAutosaveName("NotchIslandSettings")
+            if !window.setFrameUsingName("NotchIslandSettings") {
+                window.center()
+            }
             self.window = window
         }
         NSApp.activate()

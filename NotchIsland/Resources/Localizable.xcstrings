@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "About NotchIsland": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tentang NotchIsland"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About NotchIsland"
+          }
+        }
+      }
+    },
     "Allow NotchIsland in Login Items to finish.": {
       "localizations": {
         "id": {
