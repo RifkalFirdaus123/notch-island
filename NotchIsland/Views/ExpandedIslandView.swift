@@ -8,7 +8,7 @@ struct ExpandedIslandView: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 HStack(spacing: 2) {
-                    ForEach(viewModel.enabledTabs.filter { !$0.isInRightEar }) { tab in
+                    ForEach(viewModel.leftEarTabs) { tab in
                         TabButton(tab: tab, isSelected: tab == viewModel.selectedTab) {
                             viewModel.select(tab)
                         }
@@ -20,7 +20,7 @@ struct ExpandedIslandView: View {
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
                 HStack(spacing: 2) {
-                    ForEach(viewModel.enabledTabs.filter(\.isInRightEar)) { tab in
+                    ForEach(viewModel.rightEarTabs) { tab in
                         TabButton(tab: tab, isSelected: tab == viewModel.selectedTab) {
                             viewModel.select(tab)
                         }
@@ -53,6 +53,8 @@ struct ExpandedIslandView: View {
                 nowPlaying: viewModel.nowPlaying,
                 lyricMoods: viewModel.lyricMoods
             )
+        case .pomodoro:
+            PomodoroTabView(pomodoro: viewModel.pomodoro)
         case .camera:
             CameraTabView(camera: viewModel.camera)
         case .shelf:

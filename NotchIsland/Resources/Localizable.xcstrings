@@ -1,6 +1,54 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Pomodoro": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pomodoro"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pomodoro"
+          }
+        }
+      }
+    },
+    "Pomodoro tab": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab Pomodoro"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pomodoro tab"
+          }
+        }
+      }
+    },
+    "Pomodoro Timer": {
+      "localizations": {
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer Pomodoro"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pomodoro Timer"
+          }
+        }
+      }
+    },
     "About NotchIsland": {
       "localizations": {
         "id": {

@@ -6,9 +6,14 @@ struct SettingsView: View {
     let shelfDirectory: URL
 
     @AppStorage(SettingsKeys.showInFullscreen) private var showInFullscreen = false
+    @AppStorage(SettingsKeys.featurePomodoro) private var pomodoroEnabled = true
     @AppStorage(SettingsKeys.featureCamera) private var cameraEnabled = true
     @AppStorage(SettingsKeys.featureShelf) private var shelfEnabled = true
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
+    @AppStorage(SettingsKeys.pomodoroWorkMinutes) private var pomodoroWorkMinutes = 25
+    @AppStorage(SettingsKeys.pomodoroShortBreakMinutes) private var pomodoroShortBreakMinutes = 5
+    @AppStorage(SettingsKeys.pomodoroLongBreakMinutes) private var pomodoroLongBreakMinutes = 15
+    @AppStorage(SettingsKeys.pomodoroLongBreakInterval) private var pomodoroLongBreakInterval = 4
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
     @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
@@ -71,6 +76,7 @@ struct SettingsView: View {
             }
 
             Section("Features") {
+                Toggle("Pomodoro tab", isOn: $pomodoroEnabled)
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
@@ -108,6 +114,50 @@ struct SettingsView: View {
                 Text("Music Sources")
             } footer: {
                 Text("YouTube needs View › Developer › Allow JavaScript from Apple Events turned on in the browser. Auto-skip only presses YouTube's own Skip button once it appears.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Stepper(value: $pomodoroWorkMinutes, in: 1...90, step: 1) {
+                    HStack {
+                        Text("Focus duration")
+                        Spacer()
+                        Text("\(pomodoroWorkMinutes) min")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+                Stepper(value: $pomodoroShortBreakMinutes, in: 1...30, step: 1) {
+                    HStack {
+                        Text("Short break")
+                        Spacer()
+                        Text("\(pomodoroShortBreakMinutes) min")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+                Stepper(value: $pomodoroLongBreakMinutes, in: 1...60, step: 1) {
+                    HStack {
+                        Text("Long break")
+                        Spacer()
+                        Text("\(pomodoroLongBreakMinutes) min")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+                Stepper(value: $pomodoroLongBreakInterval, in: 1...10, step: 1) {
+                    HStack {
+                        Text("Long break interval")
+                        Spacer()
+                        Text("Every \(pomodoroLongBreakInterval) sessions")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Pomodoro Timer")
+            } footer: {
+                Text("Customize interval durations and how often long breaks occur.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

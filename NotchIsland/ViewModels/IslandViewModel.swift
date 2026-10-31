@@ -23,11 +23,12 @@ final class IslandViewModel: ObservableObject {
     let storage: StorageService
     let nowPlaying: NowPlayingService
     let lyricMoods: LyricMoodService
+    let pomodoro: PomodoroService
 
     /// Width of each "ear" next to the notch in the hover state.
     static let earWidth: CGFloat = 96
-    /// Narrower ears for the idle now-playing row.
-    static let idleEarWidth: CGFloat = 42
+    /// Narrower ears for the idle now-playing or pomodoro row.
+    static let idleEarWidth: CGFloat = 46
     static let expandedBaseSize = CGSize(width: 460, height: 180)
     /// The lyric strip may grow to this fraction of the screen width.
     static let maxLyricWidthFraction: CGFloat = 0.6
@@ -41,6 +42,7 @@ final class IslandViewModel: ObservableObject {
         projects: ProjectsService,
         storage: StorageService,
         nowPlaying: NowPlayingService,
+        pomodoro: PomodoroService,
         lyricMoods: LyricMoodService
     ) {
         self.battery = battery
@@ -51,13 +53,16 @@ final class IslandViewModel: ObservableObject {
         self.projects = projects
         self.storage = storage
         self.nowPlaying = nowPlaying
+        self.pomodoro = pomodoro
         self.lyricMoods = lyricMoods
     }
 
     /// What to show when nobody is hovering.
     var idleState: IslandState {
         if lyricLine != nil { return .lyric }
-        return nowPlaying.info?.isPlaying == true ? .playing : .collapsed
+        if nowPlaying.info?.isPlaying == true { return .playing }
+        if pomodoro.isActive { return .pomodoro }
+        return .collapsed
     }
 
     /// Tabs switched on in Settings; Home is always there.
@@ -65,6 +70,7 @@ final class IslandViewModel: ObservableObject {
         IslandTab.allCases.filter { tab in
             switch tab {
             case .home: true
+            case .pomodoro: UserDefaults.standard.bool(forKey: SettingsKeys.featurePomodoro)
             case .camera: UserDefaults.standard.bool(forKey: SettingsKeys.featureCamera)
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
             case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
@@ -73,9 +79,20 @@ final class IslandViewModel: ObservableObject {
         }
     }
 
+    /// Up to three tabs fit in the left ear; remaining tabs flow into the right ear beside the title.
+    var leftEarTabs: [IslandTab] {
+        Array(enabledTabs.prefix(3))
+    }
+
+    var rightEarTabs: [IslandTab] {
+        Array(enabledTabs.dropFirst(3))
+    }
+
     func select(_ tab: IslandTab) {
         guard tab != selectedTab else { return }
-        tabTransitionEdge = tab.rawValue > selectedTab.rawValue ? .trailing : .leading
+        let currentIndex = enabledTabs.firstIndex(of: selectedTab) ?? 0
+        let targetIndex = enabledTabs.firstIndex(of: tab) ?? 0
+        tabTransitionEdge = targetIndex > currentIndex ? .trailing : .leading
         selectedTab = tab
     }
 
@@ -114,7 +131,7 @@ final class IslandViewModel: ObservableObject {
         switch state {
         case .collapsed:
             return idle
-        case .playing:
+        case .playing, .pomodoro:
             return CGSize(width: idle.width + Self.idleEarWidth * 2, height: idle.height)
         case .lyric:
             let textWidth = lyricLine.map { LyricStripView.textWidth($0, mood: lyricMood) } ?? 0

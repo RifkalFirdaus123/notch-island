@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let nowPlaying = NowPlayingService()
         let lyrics = LyricsService(nowPlaying: nowPlaying)
         let shelf = ShelfService()
+        let pomodoro = PomodoroService()
         battery.start()
         clock.start()
         nowPlaying.start()
@@ -44,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             projects: ProjectsService(),
             storage: StorageService(),
             nowPlaying: nowPlaying,
+            pomodoro: pomodoro,
             lyricMoods: lyricMoods
         )
         lyrics.$currentLine

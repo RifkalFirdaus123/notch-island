@@ -58,11 +58,14 @@ final class NotchWindowController {
             }
             .store(in: &cancellables)
 
-        // Show or hide the lyric strip and now-playing row while idle.
+        // Show or hide the lyric strip, now-playing row, and pomodoro timer while idle.
         viewModel.$lyricLine
             .map { $0 != nil }
             .removeDuplicates()
-            .combineLatest(viewModel.nowPlaying.$info.map { $0?.isPlaying == true }.removeDuplicates())
+            .combineLatest(
+                viewModel.nowPlaying.$info.map { $0?.isPlaying == true }.removeDuplicates(),
+                viewModel.pomodoro.$state.map { $0 == .running || $0 == .paused }.removeDuplicates()
+            )
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self, !self.viewModel.state.isOpen else { return }
@@ -244,7 +247,7 @@ final class NotchWindowController {
         switch viewModel.state {
         case .hover, .expanded: rect = viewModel.screenRect(for: viewModel.state)
         // Not the lyric strip itself, so it doesn't open while reading.
-        case .playing, .lyric: rect = viewModel.screenRect(for: .playing)
+        case .playing, .lyric, .pomodoro: rect = viewModel.screenRect(for: .playing)
         case .collapsed: rect = viewModel.screenRect(for: .collapsed)
         }
         // Negative inset also extends past the top edge, so the topmost
