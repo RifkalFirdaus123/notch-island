@@ -11,6 +11,11 @@ enum SettingsKeys {
     static let featureCamera = "featureCamera"
     static let featureShelf = "featureShelf"
     static let featureProjects = "featureProjects"
+    static let featurePomodoro = "featurePomodoro"
+    static let pomodoroWorkMinutes = "pomodoroWorkMinutes"
+    static let pomodoroShortBreakMinutes = "pomodoroShortBreakMinutes"
+    static let pomodoroLongBreakMinutes = "pomodoroLongBreakMinutes"
+    static let pomodoroLongBreakInterval = "pomodoroLongBreakInterval"
     /// Folder listed in the Projects tab; empty means ~/Documents/hotama.
     static let projectsFolder = "projectsFolder"
     /// Default application used to open projects ("vscode", "antigravity", "finder").
@@ -43,6 +48,11 @@ enum SettingsKeys {
             featureCamera: true,
             featureShelf: true,
             featureProjects: true,
+            featurePomodoro: true,
+            pomodoroWorkMinutes: 25,
+            pomodoroShortBreakMinutes: 5,
+            pomodoroLongBreakMinutes: 15,
+            pomodoroLongBreakInterval: 4,
             projectsFolder: "",
             projectsEditor: "antigravity",
             featureStorage: true,

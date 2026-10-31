@@ -18,7 +18,7 @@ struct IslandView: View {
     private var bottomRadius: CGFloat {
         switch state {
         case .collapsed: 8
-        case .playing: 10
+        case .playing, .pomodoro: 10
         case .lyric: 12
         case .hover: 14
         case .expanded: 28
@@ -54,7 +54,14 @@ struct IslandView: View {
         case .collapsed:
             Color.clear
         case .playing:
-            CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
+            CompactNowPlayingRow(
+                notchSize: viewModel.idleNotchSize,
+                nowPlaying: viewModel.nowPlaying,
+                pomodoro: viewModel.pomodoro
+            )
+            .transition(.opacity)
+        case .pomodoro:
+            CompactPomodoroRow(notchSize: viewModel.idleNotchSize, pomodoro: viewModel.pomodoro)
                 .transition(.opacity)
         case .lyric:
             ZStack(alignment: .top) {
@@ -64,7 +71,11 @@ struct IslandView: View {
                     stripHeight: lyricStripHeight,
                     mood: viewModel.lyricMood
                 )
-                CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
+                CompactNowPlayingRow(
+                    notchSize: viewModel.idleNotchSize,
+                    nowPlaying: viewModel.nowPlaying,
+                    pomodoro: viewModel.pomodoro
+                )
             }
             .transition(.opacity)
         case .hover:
@@ -73,7 +84,8 @@ struct IslandView: View {
                 notchSize: CGSize(width: viewModel.notchSize.width, height: viewModel.idleNotchSize.height),
                 clock: viewModel.clock,
                 battery: viewModel.battery,
-                nowPlaying: viewModel.nowPlaying
+                nowPlaying: viewModel.nowPlaying,
+                pomodoro: viewModel.pomodoro
             )
                 .contentShape(Rectangle())
                 .onTapGesture { viewModel.state = .expanded }
@@ -91,6 +103,7 @@ private struct HoverSummaryView: View {
     @ObservedObject var clock: ClockService
     @ObservedObject var battery: BatteryService
     @ObservedObject var nowPlaying: NowPlayingService
+    @ObservedObject var pomodoro: PomodoroService
 
     var body: some View {
         HStack(spacing: 6) {
@@ -102,11 +115,30 @@ private struct HoverSummaryView: View {
                         .symbolEffect(.variableColor.iterative, options: .repeating)
                         .foregroundStyle(nowPlaying.accentColor ?? .white)
                 }
+            } else if pomodoro.isActive {
+                Image(systemName: "timer")
+                    .foregroundStyle(pomodoro.phase == .focus ? Color(red: 1.0, green: 0.35, blue: 0.3) : Color(red: 0.3, green: 0.8, blue: 0.5))
+                Text(pomodoro.formattedTime)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .monospacedDigit()
             } else {
                 Image(systemName: "music.note")
                     .foregroundStyle(.white.opacity(0.6))
             }
             Spacer(minLength: notchSize.width)
+            if nowPlaying.info != nil && pomodoro.isActive {
+                HStack(spacing: 2) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 9, weight: .bold))
+                    Text(pomodoro.formattedTime)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                }
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(.white.opacity(0.12)))
+            }
             // Icon only: the ear is too narrow for the percentage too.
             if let status = battery.status {
                 Image(systemName: status.symbolName)
@@ -124,25 +156,69 @@ private struct HoverSummaryView: View {
     }
 }
 
-/// Idle row while music plays: artwork left of the notch, equalizer right.
+/// Idle row while music plays: artwork left of the notch, equalizer right (or pomodoro countdown).
 private struct CompactNowPlayingRow: View {
     let notchSize: CGSize
     @ObservedObject var nowPlaying: NowPlayingService
+    @ObservedObject var pomodoro: PomodoroService
 
     var body: some View {
         HStack(spacing: 0) {
             ArtworkView(image: nowPlaying.artwork, cornerRadius: 5)
                 .frame(width: 22, height: 22)
             Spacer(minLength: notchSize.width)
-            EqualizerView(
-                isAnimating: nowPlaying.info?.isPlaying == true,
-                color: nowPlaying.accentColor ?? .white
-            )
-            .frame(width: 18, height: 14)
+            if pomodoro.isActive {
+                HStack(spacing: 2) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 8, weight: .bold))
+                    Text(pomodoro.formattedTime)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                }
+                .foregroundStyle(.white)
+            } else {
+                EqualizerView(
+                    isAnimating: nowPlaying.info?.isPlaying == true,
+                    color: nowPlaying.accentColor ?? .white
+                )
+                .frame(width: 18, height: 14)
+            }
         }
         .padding(.horizontal, 10)
         // Fixed width, centered: under a wide lyric strip it stays beside
         // the notch instead of drifting to the strip's edges.
+        .frame(width: notchSize.width + IslandViewModel.idleEarWidth * 2, height: notchSize.height)
+    }
+}
+
+/// Idle row while pomodoro timer is running without music.
+private struct CompactPomodoroRow: View {
+    let notchSize: CGSize
+    @ObservedObject var pomodoro: PomodoroService
+
+    private var accentColor: Color {
+        pomodoro.phase == .focus
+            ? Color(red: 1.0, green: 0.35, blue: 0.3)
+            : Color(red: 0.3, green: 0.8, blue: 0.5)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 3) {
+                Image(systemName: "timer")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(accentColor)
+                Text(pomodoro.phase == .focus ? "Focus" : "Break")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            Spacer(minLength: notchSize.width)
+            Text(pomodoro.formattedTime)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 10)
         .frame(width: notchSize.width + IslandViewModel.idleEarWidth * 2, height: notchSize.height)
     }
 }

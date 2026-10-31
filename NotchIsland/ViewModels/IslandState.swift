@@ -6,6 +6,8 @@ enum IslandState: Equatable {
     case collapsed
     /// Idle with music playing: artwork and an equalizer beside the notch.
     case playing
+    /// Idle with pomodoro timer running.
+    case pomodoro
     /// Like `playing`, plus a thin lyric strip under the notch.
     case lyric
     /// Cursor over the notch: medium width summary.
@@ -18,6 +20,7 @@ enum IslandState: Equatable {
 
 enum IslandTab: Int, CaseIterable, Identifiable {
     case home
+    case pomodoro
     case camera
     case shelf
     case projects
@@ -28,6 +31,7 @@ enum IslandTab: Int, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .home: "house.fill"
+        case .pomodoro: "timer"
         case .camera: "camera.fill"
         case .shelf: "tray.full.fill"
         case .projects: "folder.fill"
@@ -35,12 +39,13 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// The left ear only fits three icons; the rest sit beside the title.
-    var isInRightEar: Bool { self == .projects || self == .storage }
+    /// The left ear fits up to three icons; remaining tabs sit in the right ear beside the title.
+    var isInRightEar: Bool { self == .shelf || self == .projects || self == .storage }
 
     var title: LocalizedStringKey {
         switch self {
         case .home: "Home"
+        case .pomodoro: "Pomodoro"
         case .camera: "Camera"
         case .shelf: "File Shelf"
         case .projects: "Projects"
