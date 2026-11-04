@@ -4,6 +4,9 @@ import SwiftUI
 struct NowPlayingView: View {
     @ObservedObject var nowPlaying: NowPlayingService
     @ObservedObject var lyricMoods: LyricMoodService
+    var lyricLine: String?
+
+    @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
 
     var body: some View {
         if let info = nowPlaying.info {
@@ -31,6 +34,9 @@ struct NowPlayingView: View {
                         PlaybackProgress(info: info, tint: nowPlaying.accentColor ?? .white, seek: nowPlaying.seek)
                     }
                     PlaybackControls(nowPlaying: nowPlaying, isPlaying: info.isPlaying)
+                    if lyricsEnabled {
+                        LyricLineView(line: info.isPlaying ? lyricLine : nil, mood: lyricMoods.mood)
+                    }
                 }
                 .lineLimit(1)
             }
@@ -126,7 +132,7 @@ private struct MoodMenu: View {
         } label: {
             Image(systemName: lyricMoods.mood.symbol)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(lyricMoods.mood.gradient)
+                .moodForeground(lyricMoods.mood)
                 .frame(width: 18, height: 16)
                 .contentShape(Rectangle())
         }
@@ -234,6 +240,66 @@ private struct PlaybackProgress: View {
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, secs)
             : String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+/// The current lyric line, under the playback controls. Keeps its height
+/// when empty so the block above doesn't jump between lines. A line wider
+/// than the block scrolls forward once so it can be read in full.
+private struct LyricLineView: View {
+    let line: String?
+    let mood: LyricMood
+
+    private static let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                if let line {
+                    LyricText(
+                        line: line,
+                        mood: mood,
+                        textWidth: ceil((line as NSString).size(withAttributes: [.font: Self.font]).width),
+                        availableWidth: proxy.size.width
+                    )
+                    .id(line)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .frame(height: 15)
+        .clipped()
+        .animation(.easeInOut(duration: 0.3), value: line)
+    }
+}
+
+private struct LyricText: View {
+    let line: String
+    let mood: LyricMood
+    let textWidth: CGFloat
+    let availableWidth: CGFloat
+
+    @State private var shifted = false
+
+    private var overflow: CGFloat { max(0, textWidth - availableWidth) }
+
+    var body: some View {
+        Text(line)
+            .font(.system(size: 11, weight: .medium))
+            .lineLimit(1)
+            .fixedSize()
+            .moodForeground(mood)
+            .offset(x: overflow > 0 ? (shifted ? -overflow / 2 : overflow / 2) : 0)
+            .onAppear {
+                guard overflow > 0 else { return }
+                // Once, at roughly 30 pt/s after a short pause to start
+                // reading, then it stays at the end until the next line.
+                withAnimation(.linear(duration: Double(overflow) / 30).delay(0.6)) { shifted = true }
+            }
     }
 }
 

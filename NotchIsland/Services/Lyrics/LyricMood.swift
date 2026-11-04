@@ -164,3 +164,22 @@ nonisolated struct ITunesGenreClient: GenreProviding {
         return best?.result
     }
 }
+
+extension View {
+    /// Fills the view with the mood's gradient, cross-fading over `duration`
+    /// when the mood changes. Gradients with different stops don't
+    /// interpolate on their own, so each mood's gradient is layered and
+    /// faded in or out.
+    func moodForeground(_ mood: LyricMood, duration: Double = 1.5) -> some View {
+        opacity(0)
+            .overlay {
+                ZStack {
+                    ForEach(LyricMood.allCases) { candidate in
+                        candidate.gradient.opacity(candidate == mood ? 1 : 0)
+                    }
+                }
+                .mask(self)
+            }
+            .animation(.easeInOut(duration: duration), value: mood)
+    }
+}

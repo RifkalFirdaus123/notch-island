@@ -51,7 +51,8 @@ struct ExpandedIslandView: View {
                 battery: viewModel.battery,
                 systemStats: viewModel.systemStats,
                 nowPlaying: viewModel.nowPlaying,
-                lyricMoods: viewModel.lyricMoods
+                lyricMoods: viewModel.lyricMoods,
+                lyricLine: viewModel.lyricLine
             )
         case .camera:
             CameraTabView(camera: viewModel.camera)

@@ -19,6 +19,11 @@ final class BrowserSource: MusicSource {
     /// Keep showing the last track this long when a poll fails (the browser
     /// was busy), instead of flashing "Nothing playing".
     private static let failureGrace: TimeInterval = 15
+    /// Keep the last track this long when no tab answers: a tab is briefly
+    /// unreadable while YouTube switches videos or the page is busy.
+    private static let missingGrace: TimeInterval = 5
+    /// A tab must time out this many polls in a row before it is left alone.
+    private static let timeoutsBeforeBackoff = 3
 
     let kind = MusicSourceKind.browser
     let displayName: String
@@ -33,6 +38,10 @@ final class BrowserSource: MusicSource {
     private var tab: BrowserTab?
     /// Tab id literals that timed out, and when.
     private var unresponsiveTabs: [String: Date] = [:]
+    /// Consecutive timeouts per tab id literal.
+    private var timeoutCounts: [String: Int] = [:]
+    /// When a tab last answered.
+    private var lastTabSeen: Date?
     private var lastSuccess: Date?
 
     init(displayName: String, bundleID: String, runner: AppleScriptRunner = .shared) {
@@ -69,12 +78,14 @@ final class BrowserSource: MusicSource {
         pollTask?.cancel()
         pollTask = nil
         tab = nil
+        lastTabSeen = nil
         update(info: nil, issue: nil)
     }
 
     private func poll() async {
         guard isRunning else {
             tab = nil
+            lastTabSeen = nil
             update(info: nil, issue: nil)
             return
         }
@@ -87,13 +98,30 @@ final class BrowserSource: MusicSource {
         switch result {
         case .success(let poll):
             lastSuccess = now
-            for id in poll.timedOut { unresponsiveTabs[id] = now }
+            for id in poll.timedOut {
+                timeoutCounts[id, default: 0] += 1
+                if timeoutCounts[id, default: 0] >= Self.timeoutsBeforeBackoff { unresponsiveTabs[id] = now }
+            }
+            for answered in poll.tabs { timeoutCounts[answered.tabIDLiteral] = nil }
             let tabs = poll.tabs
             // Prefer a tab that is actually playing.
-            let chosen = tabs.first { $0.isPlaying } ?? tabs.first
+            let found = tabs.first { $0.isPlaying } ?? tabs.first
+            if let previous = tab, let lastTabSeen, now.timeIntervalSince(lastTabSeen) < Self.missingGrace,
+               poll.timedOut.contains(previous.tabIDLiteral), found?.isPlaying != true {
+                // The tab we were reading hiccuped; don't swap it for a
+                // paused one or for nothing.
+                return
+            }
+            guard let chosen = found else {
+                if let lastTabSeen, now.timeIntervalSince(lastTabSeen) < Self.missingGrace { return }
+                tab = nil
+                update(info: nil, issue: nil)
+                return
+            }
+            lastTabSeen = now
             tab = chosen
-            update(info: chosen?.info, issue: nil)
-            if chosen?.info.canSkipAd == true, UserDefaults.standard.bool(forKey: SettingsKeys.autoSkipAds) {
+            update(info: chosen.info, issue: nil)
+            if chosen.info.canSkipAd, UserDefaults.standard.bool(forKey: SettingsKeys.autoSkipAds) {
                 skipAd()
             }
         case .failure(.notAuthorized):
@@ -214,6 +242,7 @@ nonisolated enum BrowserScripts {
             set skipIDs to {\(skipping.joined(separator: ", "))}
             set out to {}
             repeat with w in windows
+                try
                 set tabURLs to URL of every tab of w
                 set tabIDs to id of every tab of w
                 repeat with i from 1 to count of tabURLs
@@ -237,6 +266,10 @@ nonisolated enum BrowserScripts {
                         set end of out to {id of w, tid, u, j}
                     end if
                 end repeat
+                on error windowMsg number windowNum
+                    -- A window that can't be read (e.g. without tabs) must not hide the rest.
+                    if windowMsg contains "JavaScript" or windowNum is -1743 then error windowMsg number windowNum
+                end try
             end repeat
             return out
             end timeout

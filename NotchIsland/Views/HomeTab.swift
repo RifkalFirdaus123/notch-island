@@ -8,6 +8,7 @@ struct HomeTabView: View {
     @ObservedObject var systemStats: SystemStatsService
     let nowPlaying: NowPlayingService
     let lyricMoods: LyricMoodService
+    var lyricLine: String?
 
     @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
 
@@ -27,7 +28,7 @@ struct HomeTabView: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: 16) {
-            NowPlayingView(nowPlaying: nowPlaying, lyricMoods: lyricMoods)
+            NowPlayingView(nowPlaying: nowPlaying, lyricMoods: lyricMoods, lyricLine: lyricLine)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(clock.now, format: .dateTime.hour().minute())

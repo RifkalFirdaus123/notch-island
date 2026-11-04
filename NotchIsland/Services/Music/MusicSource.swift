@@ -34,6 +34,8 @@ nonisolated struct NowPlayingInfo: Equatable, Sendable {
         return trackID == other.trackID
             && title == other.title
             && artist == other.artist
+            // YouTube reports no duration until the video has loaded.
+            && duration == other.duration
             && isPlaying == other.isPlaying
             && artworkURL == other.artworkURL
             && isAd == other.isAd

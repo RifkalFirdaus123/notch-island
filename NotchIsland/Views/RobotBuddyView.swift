@@ -12,35 +12,42 @@ struct RobotBuddyView: View {
     /// An ad is playing: red, smug eyes and a head held high.
     var isAngry = false
 
-    private var active: Bool { isListening || isAngry }
-    private var vibe: Vibe { isAngry ? .smug : isListening ? .make(mood) : .make(.neutral) }
+    private var mode: Mode { Mode(isListening: isListening, isAngry: isAngry, mood: mood) }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: active ? 1 / 24 : 1 / 15)) { context in
+        let mode = self.mode
+        TimelineView(.animation(minimumInterval: mode.active || RobotTransitions.shared.isChanging ? 1 / 24 : 1 / 15)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            let phase = t * vibe.bpm / 60
-            let beat = abs(sin(.pi * phase))
-            let pose = active ? self.pose(atBeat: phase) : .rest
-            let shape = eyes(at: t, lookSway: pose.look)
+            let frame = RobotTransitions.shared.frame(for: mode, at: t)
+            let pose = frame.pose
+            let shape = frame.shape
 
             ZStack {
                 EyesView(shape: shape, scale: scale)
                 // On top, so a cup is never hidden behind an eye.
-                HeadsetView(tint: shape.color, scale: scale, pulse: isListening ? beat : 0)
-                    .opacity(isListening ? 1 : 0)
-                    .offset(y: isListening ? 0 : -8 * scale)
-                    .scaleEffect(isListening ? 1 : 0.6)
+                HeadsetView(tint: shape.color, scale: scale, pulse: frame.pulse)
+                    .opacity(frame.headset)
+                    .offset(y: (1 - frame.headset) * -8 * scale)
+                    .scaleEffect(0.6 + 0.4 * frame.headset)
             }
             .frame(width: Self.faceWidth * scale)
             .scaleEffect(x: 1 - (pose.squash - 1) * 0.5, y: pose.squash, anchor: .bottom)
             .rotationEffect(.degrees(pose.rotation))
             .offset(x: pose.x * scale, y: pose.y * scale)
-            .animation(.spring(response: 0.45, dampingFraction: 0.65), value: isListening)
         }
     }
 
     /// Width of the face including the headset, in design points.
     private static let faceWidth: CGFloat = 60
+
+    fileprivate static func frame(for mode: Mode, at t: Double) -> Frame {
+        let vibe = mode.vibe
+        let phase = t * vibe.bpm / 60
+        let pose = self.pose(atBeat: phase, vibe: vibe)
+        let shape = eyes(at: t, mode: mode, lookSway: pose.look)
+        return Frame(pose: pose, shape: shape, pulse: mode.isListening ? abs(sin(.pi * phase)) : 0,
+                     headset: mode.isListening ? 1 : 0)
+    }
 
     // MARK: - Dancing
 
@@ -49,10 +56,10 @@ struct RobotBuddyView: View {
 
     /// The head's pose at a beat: the current move, blended in from the
     /// previous one so the change reads as a transition, not a jump.
-    private func pose(atBeat beat: Double) -> Pose {
+    private static func pose(atBeat beat: Double, vibe: Vibe) -> Pose {
         let moves = vibe.moves
         let segment = floor(beat / Self.beatsPerMove)
-        let into = (beat - segment * Self.beatsPerMove) / 0.5
+        let into = (beat - segment * Self.beatsPerMove) / (vibe.isIdle ? 1 : 0.5)
         let current = moves[Self.pick(Int(segment) &+ 7, count: moves.count)]
         let previous = moves[Self.pick(Int(segment) &+ 6, count: moves.count)]
         return previous.pose(at: beat, vibe: vibe).mixed(with: current.pose(at: beat, vibe: vibe), by: Self.ease(into))
@@ -60,48 +67,154 @@ struct RobotBuddyView: View {
 
     // MARK: - Expressions
 
-    private static let idleExpressions: [EyeShape] = [
-        .neutral, .neutral, .neutral, .lookLeft, .lookRight, .lookUp, .happy, .sleepy, .surprised, .suspicious,
-    ]
-
-    private func eyes(at t: Double, lookSway: Double) -> EyeShape {
-        let list = active ? vibe.expressions : Self.idleExpressions
-        let length = active ? 4 * 60 / vibe.bpm : 3.2
+    private static func eyes(at t: Double, mode: Mode, lookSway: Double) -> EyeShape {
+        let vibe = mode.vibe
+        let length = mode.active ? 4 * 60 / vibe.bpm : 3.2
         let segment = floor(t / length)
-        let into = (t - segment * length) / 0.22
+        let into = (t - segment * length) / (mode.active ? 0.22 : 0.4)
 
+        let list = vibe.expressions
         let current = list[Self.pick(Int(segment), count: list.count)]
         let previous = list[Self.pick(Int(segment) - 1, count: list.count)]
         var shape = previous.mixed(with: current, by: Self.ease(into))
         shape.lookX += lookSway
-        if active {
+        if mode.active {
             // Keep the eyes between the headset's cups, wide ones included.
             let room = max(0, RobotLayout.eyeSpan - shape.width)
             shape.lookX = min(room, max(-room, shape.lookX))
         }
-
-        // Quick blink every few seconds.
-        let blink = t.truncatingRemainder(dividingBy: 3.7)
-        if blink < 0.14 { shape.height *= max(0.08, abs(blink - 0.07) / 0.07) }
-
-        if isAngry {
-            (shape.red, shape.green, shape.blue) = (1, 0.1, 0.08)
-        } else {
-            (shape.red, shape.green, shape.blue) = isListening && mood != .neutral ? mood.eyeColor : (0.2, 0.95, 1)
-        }
+        (shape.red, shape.green, shape.blue) = mode.eyeColor
         return shape
     }
 
+    // MARK: - Blinking
+
+    private static let blinkWindow = 3.7
+
+    /// Height multiplier for one quick blink starting `d` seconds ago.
+    fileprivate static func blink(_ d: Double) -> Double {
+        d >= 0 && d < 0.14 ? max(0.08, abs(d - 0.07) / 0.07) : 1
+    }
+
+    /// One blink at a random moment in every few seconds, sometimes a double.
+    fileprivate static func blinkAmount(at t: Double) -> Double {
+        let window = floor(t / blinkWindow)
+        let local = t - window * blinkWindow
+        let start = 0.3 + Double(pick(Int(window) &+ 11, count: 100)) / 100 * 2.9
+        var amount = blink(local - start)
+        if pick(Int(window) &+ 13, count: 4) == 0 { amount = min(amount, blink(local - start - 0.22)) }
+        return amount
+    }
+
     /// Cheap deterministic hash so a segment always picks the same entry.
-    private static func pick(_ index: Int, count: Int) -> Int {
+    fileprivate static func pick(_ index: Int, count: Int) -> Int {
         var x = UInt64(bitPattern: Int64(index)) &* 6364136223846793005 &+ 1442695040888963407
         x ^= x >> 29
         return Int(x % UInt64(count))
     }
 
-    private static func ease(_ x: Double) -> Double {
+    fileprivate static func ease(_ x: Double) -> Double {
         let c = min(1, max(0, x))
         return c * c * (3 - 2 * c)
+    }
+}
+
+/// What the robot is reacting to; a change sets off a double take.
+private struct Mode: Equatable {
+    var isListening: Bool
+    var isAngry: Bool
+    var mood: LyricMood
+
+    var active: Bool { isListening || isAngry }
+    var vibe: Vibe { isAngry ? .smug : isListening ? .make(mood) : .idle }
+
+    var eyeColor: (Double, Double, Double) {
+        if isAngry { return (1, 0.1, 0.08) }
+        return isListening && mood != .neutral ? mood.eyeColor : (0.2, 0.95, 1)
+    }
+}
+
+/// Everything drawn for one moment; blends linearly between two.
+private struct Frame {
+    var pose: Pose
+    var shape: EyeShape
+    /// Headset cup pulse, 0...1.
+    var pulse: Double
+    /// How far the headset is on, 0...1.
+    var headset: Double
+
+    func mixed(with other: Frame, by f: Double) -> Frame {
+        func m(_ a: Double, _ b: Double) -> Double { a + (b - a) * f }
+        return Frame(pose: pose.mixed(with: other.pose, by: f), shape: shape.mixed(with: other.shape, by: f),
+                     pulse: m(pulse, other.pulse), headset: m(headset, other.headset))
+    }
+
+    func blinking(at t: Double) -> Frame {
+        var frame = self
+        frame.shape.height *= RobotBuddyView.blinkAmount(at: t)
+        return frame
+    }
+}
+
+/// Remembers recent mode changes outside any one view: the island rebuilds
+/// the robot whenever the lyric strip comes or goes, which is exactly when an
+/// ad starts or a song changes, so view state would forget the change.
+@MainActor
+private final class RobotTransitions {
+    static let shared = RobotTransitions()
+
+    /// Seconds of the "huh?" double take: it freezes mid-move, eyes wide,
+    /// glancing aside, then blinks twice as if checking it saw right.
+    private static let noticeLength = 1.0
+    /// When, into the double take, the old mode starts fading out.
+    private static let blendStart = 0.7
+    /// Seconds pose, expression, color and headset take to settle.
+    private static let blendLength = 2.2
+    /// Seconds the eye color takes: slower than the rest, so it drifts.
+    private static let colorLength = 4.0
+
+    /// Each mode the robot has switched to and when; the first is fully settled.
+    private var layers: [(mode: Mode, start: Double)] = []
+
+    var isChanging: Bool { layers.count > 1 }
+
+    func frame(for mode: Mode, at t: Double) -> Frame {
+        if layers.last?.mode != mode { layers.append((mode, t)) }
+        // Once a change has fully settled, everything before it is hidden.
+        if let settled = layers.lastIndex(where: { t - $0.start >= Self.blendStart + max(Self.blendLength, Self.colorLength) }), settled > 0 {
+            layers.removeFirst(settled)
+        }
+        return frame(upTo: layers.count - 1, at: t).blinking(at: t)
+    }
+
+    private func frame(upTo index: Int, at t: Double) -> Frame {
+        let layer = layers[index]
+        let target = RobotBuddyView.frame(for: layer.mode, at: t)
+        guard index > 0 else { return target }
+
+        let elapsed = t - layer.start
+        // What it was doing, frozen the moment it noticed.
+        let before = frame(upTo: index - 1, at: min(t, layer.start))
+        var blended = before.mixed(with: target, by: RobotBuddyView.ease((elapsed - Self.blendStart) / Self.blendLength))
+        let color = RobotBuddyView.ease((elapsed - Self.blendStart) / Self.colorLength)
+        blended.shape.red = before.shape.red + (target.shape.red - before.shape.red) * color
+        blended.shape.green = before.shape.green + (target.shape.green - before.shape.green) * color
+        blended.shape.blue = before.shape.blue + (target.shape.blue - before.shape.blue) * color
+
+        // Rises quickly, holds, then eases off over the double take.
+        let x = min(1, max(0, elapsed / Self.noticeLength))
+        let surprise = x < 0.25 ? RobotBuddyView.ease(x / 0.25) : 1 - RobotBuddyView.ease((x - 0.6) / 0.4)
+        var startled = EyeShape.surprised
+        (startled.red, startled.green, startled.blue) = (blended.shape.red, blended.shape.green, blended.shape.blue)
+        startled.lookX = RobotBuddyView.pick(Int(layer.start), count: 2) == 0 ? -2.5 : 2.5
+        blended.shape = blended.shape.mixed(with: startled, by: surprise * 0.85)
+        blended.pose.y -= 1.5 * surprise
+        blended.pose.squash += 0.06 * surprise
+        blended.pose.rotation *= 1 - surprise * 0.7
+
+        let blinkAt = Self.noticeLength * 0.6
+        blended.shape.height *= min(RobotBuddyView.blink(elapsed - blinkAt), RobotBuddyView.blink(elapsed - blinkAt - 0.22))
+        return blended
     }
 }
 
@@ -115,6 +228,14 @@ private struct Vibe {
     var expressions: [EyeShape]
     /// Moves it cycles through, one every few beats.
     var moves: [Move]
+    /// Nothing playing: moves blend in slower.
+    var isIdle = false
+
+    /// Nothing playing: mostly still, now and then a slow breath, a curious
+    /// tilt or a peek to the side.
+    static let idle = Vibe(bpm: 24, bob: 0.8, sway: 3,
+                           expressions: [.neutral, .neutral, .neutral, .lookLeft, .lookRight, .lookUp, .happy, .sleepy, .surprised, .suspicious],
+                           moves: [.rest, .rest, .breathe, .breathe, .curious, .peek], isIdle: true)
 
     /// Ads: smug. Slow, chin up, looking down its nose with a smirk.
     static let smug = Vibe(bpm: 60, bob: 1, sway: 4, expressions: [.smug, .smugAside, .smug, .smugOther],
@@ -152,12 +273,24 @@ private struct Pose {
 
 private enum Move {
     case bounce, doubleBounce, sway, sideStep, squash, swirl, wiggle, tilt, look, headbang, smug
+    case rest, breathe, curious, peek
 
     func pose(at beat: Double, vibe: Vibe) -> Pose {
         let a = Double(vibe.bob), r = vibe.sway
         let s = sin(.pi * beat)
         let hop = abs(s)
+        // Rises from 0 to 1 and back over the move's four beats.
+        let swell = sin(.pi * beat / 4).magnitude
         switch self {
+        case .rest:
+            return Pose()
+        case .breathe:
+            return Pose(y: -a * 0.5 * swell, squash: 1 + 0.04 * swell)
+        case .curious:
+            // Head cocked one way, then slowly back.
+            return Pose(y: -a * 0.3 * swell, rotation: r * 2.5 * swell * (sin(.pi * beat / 8) < 0 ? -1 : 1))
+        case .peek:
+            return Pose(x: 1.5 * sin(.pi * beat / 4), look: 3 * sin(.pi * beat / 4))
         case .bounce:
             return Pose(y: -a * hop)
         case .doubleBounce:
