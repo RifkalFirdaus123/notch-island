@@ -13,7 +13,13 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
+    @AppStorage(SettingsKeys.lyricMoodStyle) private var lyricMoodStyle = false
+    @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
+    @AppStorage(SettingsKeys.featureMic) private var micEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
+    @AppStorage(SettingsKeys.idleExtraWidth) private var idleExtraWidth = 0.0
+    @AppStorage(SettingsKeys.idleExtraHeight) private var idleExtraHeight = 0.0
+    @AppStorage(SettingsKeys.autoSkipAds) private var autoSkipAds = true
     @AppStorage(SettingsKeys.musicSpotify) private var spotifyEnabled = true
     @AppStorage(SettingsKeys.musicAppleMusic) private var appleMusicEnabled = true
     @AppStorage(SettingsKeys.musicBrowser) private var browserEnabled = true
@@ -22,6 +28,7 @@ struct SettingsView: View {
     @State private var launchAtLogin = LaunchAtLogin.isEnabled || LaunchAtLogin.needsApproval
     @State private var launchAtLoginNeedsApproval = LaunchAtLogin.needsApproval
     @State private var launchAtLoginError: String?
+    @State private var showAddFolder = false
 
     var body: some View {
         Form {
@@ -49,12 +56,36 @@ struct SettingsView: View {
                 Toggle("Show over fullscreen apps", isOn: $showInFullscreen)
             }
 
+            Section {
+                SizeSlider(title: "Extra width", value: $idleExtraWidth, range: 0...160, step: 2)
+                SizeSlider(title: "Extra height", value: $idleExtraHeight, range: 0...20, step: 1)
+                if idleExtraWidth > 0 || idleExtraHeight > 0 {
+                    Button("Reset to Notch Size") {
+                        idleExtraWidth = 0
+                        idleExtraHeight = 0
+                    }
+                }
+            } header: {
+                Text("Idle Notch")
+            } footer: {
+                Text("How much bigger than the physical notch the island is when idle.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Features") {
                 Toggle("Camera tab", isOn: $cameraEnabled)
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Storage tab", isOn: $storageEnabled)
+                Toggle("Robot buddy (Home tab and beside the notch)", isOn: $buddyEnabled)
+                Toggle("Mic mute button while a call or meeting uses the microphone", isOn: $micEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
+                Toggle(isOn: $lyricMoodStyle) {
+                    Text("Mood colors for lyrics and robot eyes")
+                    Text("Blue for calm songs, red for hard ones, yellow for upbeat ones. Change it per song from the mood icon in the Home tab.")
+                }
+                .disabled(!lyricsEnabled && !buddyEnabled)
                 LabeledContent("Lyric strip height") {
                     HStack {
                         Slider(value: $lyricStripHeight, in: 18...40, step: 1)
@@ -71,6 +102,8 @@ struct SettingsView: View {
                 Toggle("Spotify", isOn: $spotifyEnabled)
                 Toggle("Apple Music", isOn: $appleMusicEnabled)
                 Toggle("YouTube in Chrome, Arc, Brave or Edge", isOn: $browserEnabled)
+                Toggle("Skip YouTube ads automatically", isOn: $autoSkipAds)
+                    .disabled(!browserEnabled)
                 ForEach(issueMessages, id: \.self) { message in
                     Label(message, systemImage: "exclamationmark.triangle.fill")
                         .font(.callout)
@@ -79,7 +112,7 @@ struct SettingsView: View {
             } header: {
                 Text("Music Sources")
             } footer: {
-                Text("YouTube needs View › Developer › Allow JavaScript from Apple Events turned on in the browser.")
+                Text("YouTube needs View › Developer › Allow JavaScript from Apple Events turned on in the browser. Auto-skip only presses YouTube's own Skip button once it appears.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -98,25 +131,35 @@ struct SettingsView: View {
                         Text(editor.displayName).tag(editor.rawValue)
                     }
                 }
-                LabeledContent("Folder") {
-                    HStack {
-                        Text(verbatim: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .foregroundStyle(.secondary)
-                        Button("Choose…") { chooseProjectsFolder() }
+                ForEach(projectFolders) { folder in
+                    LabeledContent {
+                        HStack {
+                            Text(verbatim: folder.path)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .foregroundStyle(.secondary)
+                            if projectFolders.count > 1 {
+                                Button { removeProjectsFolder(folder) } label: {
+                                    Image(systemName: "minus.circle")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    } label: {
+                        Text(verbatim: folder.name)
                     }
                 }
+                Button("Add Folder…") { showAddFolder = true }
             } header: {
                 Text("Projects")
             } footer: {
-                Text("Folders and .code-workspace files open in the selected app.")
+                Text("Add several folders to switch between them in the Projects tab. Folders and .code-workspace files open in the selected app.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. The camera picture is never recorded or stored.")
+                Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. With mood colors on, the title and artist are also sent to the iTunes Search API to look up the genre. The camera picture is never recorded or stored.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -148,6 +191,14 @@ struct SettingsView: View {
         .formStyle(.grouped)
         // Fixed height; the grouped form scrolls when its content is taller.
         .frame(width: 480, height: 560)
+        .sheet(isPresented: $showAddFolder) {
+            AddProjectFolderSheet(existing: projectFolders) { folder in
+                let current = ProjectFolder.decode(projectsFolder)
+                // The implicit default folder is only kept if it was explicitly stored.
+                let stored = projectsFolder.isEmpty ? [] : current
+                projectsFolder = ProjectFolder.encode(stored + [folder])
+            }
+        }
     }
 
     private var appVersion: String {
@@ -169,15 +220,10 @@ struct SettingsView: View {
         }
     }
 
-    private func chooseProjectsFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = URL(fileURLWithPath: projectsFolder.isEmpty ? ProjectsService.defaultFolder : projectsFolder)
-        if panel.runModal() == .OK, let url = panel.url {
-            projectsFolder = url.path
-        }
+    private var projectFolders: [ProjectFolder] { ProjectFolder.decode(projectsFolder) }
+
+    private func removeProjectsFolder(_ folder: ProjectFolder) {
+        projectsFolder = ProjectFolder.encode(projectFolders.filter { $0 != folder })
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -189,6 +235,26 @@ struct SettingsView: View {
         }
         launchAtLogin = LaunchAtLogin.isEnabled || LaunchAtLogin.needsApproval
         launchAtLoginNeedsApproval = LaunchAtLogin.needsApproval
+    }
+}
+
+/// A labeled slider with its value in points.
+private struct SizeSlider: View {
+    let title: LocalizedStringKey
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack {
+                Slider(value: $value, in: range, step: step)
+                    .frame(width: 160)
+                Text(verbatim: "+\(Int(value)) pt")
+                    .monospacedDigit()
+                    .frame(width: 44, alignment: .trailing)
+            }
+        }
     }
 }
 
@@ -212,7 +278,85 @@ final class SettingsWindowController {
             window.center()
             self.window = window
         }
-        NSApp.activate()
+        // The app is an accessory with no windows, so the cooperative
+        // `activate()` can lose to the frontmost app and leave the window
+        // behind it until a second try. Force it forward.
+        NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+        window?.orderFrontRegardless()
+    }
+}
+
+/// Asks for a folder and a required name before adding it to the Projects tab.
+private struct AddProjectFolderSheet: View {
+    let existing: [ProjectFolder]
+    let onAdd: (ProjectFolder) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var path: String?
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var duplicateMessage: String? {
+        if existing.contains(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) {
+            return String(localized: "A folder with this name already exists.")
+        }
+        if let path, existing.contains(where: { $0.path == path }) {
+            return String(localized: "This folder is already added.")
+        }
+        return nil
+    }
+
+    private var canAdd: Bool {
+        !trimmedName.isEmpty && path != nil && duplicateMessage == nil
+    }
+
+    var body: some View {
+        Form {
+            Section("Add Folder") {
+                TextField("Name", text: $name, prompt: Text("Required"))
+                LabeledContent("Folder") {
+                    HStack {
+                        Text(verbatim: path ?? String(localized: "None chosen"))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .foregroundStyle(.secondary)
+                        Button("Choose…") { choose() }
+                    }
+                }
+                if let message = duplicateMessage, !trimmedName.isEmpty {
+                    Text(message).font(.callout).foregroundStyle(.red)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Add") {
+                    guard let path else { return }
+                    onAdd(ProjectFolder(name: trimmedName, path: path))
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canAdd)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 420)
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: existing.last?.path ?? ProjectsService.defaultFolder)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        path = url.path
+        // Suggest the folder's own name, still editable.
+        if trimmedName.isEmpty { name = url.lastPathComponent }
     }
 }

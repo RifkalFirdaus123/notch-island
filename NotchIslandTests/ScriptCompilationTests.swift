@@ -22,6 +22,7 @@ struct ScriptCompilationTests {
         #expect(compileError(ScriptedPlayer.spotify.commandScript("playpause")) == nil)
         #expect(compileError(ScriptedPlayer.spotify.commandScript("next track")) == nil)
         #expect(compileError(ScriptedPlayer.spotify.commandScript("previous track")) == nil)
+        #expect(compileError(ScriptedPlayer.spotify.commandScript(ScriptedPlayer.spotify.seekCommand(to: 83.5))) == nil)
     }
 
     @Test(.enabled(if: isInstalled("com.apple.Music")))
@@ -31,6 +32,7 @@ struct ScriptCompilationTests {
         #expect(compileError(ScriptedPlayer.appleMusic.commandScript("playpause")) == nil)
         #expect(compileError(ScriptedPlayer.appleMusic.commandScript("next track")) == nil)
         #expect(compileError(ScriptedPlayer.appleMusic.commandScript("previous track")) == nil)
+        #expect(compileError(ScriptedPlayer.appleMusic.commandScript(ScriptedPlayer.appleMusic.seekCommand(to: 83.5))) == nil)
     }
 
     @Test(arguments: BrowserSource.supported.map(\.bundleID).filter(isInstalled))
@@ -46,7 +48,7 @@ struct ScriptCompilationTests {
             BrowserTab(windowIDLiteral: "12", tabIDLiteral: "34", info: info),
             BrowserTab(windowIDLiteral: "12", tabIDLiteral: "\"34\"", info: info),
         ] {
-            for js in [BrowserScripts.playPauseJS, BrowserScripts.nextJS, BrowserScripts.previousJS] {
+            for js in [BrowserScripts.playPauseJS, BrowserScripts.nextJS, BrowserScripts.previousJS, BrowserScripts.skipAdJS, BrowserScripts.seekJS(to: 83.5)] {
                 #expect(compileError(BrowserScripts.executeScript(bundleID: bundleID, tab: tab, javaScript: js)) == nil)
             }
         }
@@ -60,6 +62,13 @@ struct ScriptCompilationTests {
         #expect(info.isPlaying)
         #expect(info.duration == 269)
         #expect(info.artworkURL?.absoluteString == "https://i.ytimg.com/vi/yKNxeF4KMsY/hqdefault.jpg")
+    }
+
+    @Test func parsesAdState() throws {
+        let json = #"{"ti":"Yellow","ar":"","al":"","art":"","t":3,"d":15,"p":false,"ad":true,"sk":true}"#
+        let info = try #require(BrowserScripts.parseInfo(json: json, url: "https://www.youtube.com/watch?v=yKNxeF4KMsY"))
+        #expect(info.isAd)
+        #expect(info.canSkipAd)
     }
 
     /// Arc hands back the result JSON-encoded.

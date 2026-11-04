@@ -3,6 +3,7 @@ import SwiftUI
 /// Left side of the Home tab: artwork, title, progress and controls.
 struct NowPlayingView: View {
     @ObservedObject var nowPlaying: NowPlayingService
+    @ObservedObject var lyricMoods: LyricMoodService
 
     var body: some View {
         if let info = nowPlaying.info {
@@ -11,14 +12,24 @@ struct NowPlayingView: View {
                     .frame(width: 64, height: 64)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(info.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 4) {
+                        Text(info.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        if lyricMoods.isEnabled {
+                            Spacer(minLength: 0)
+                            MoodMenu(lyricMoods: lyricMoods)
+                        }
+                    }
                     Text(subtitle(for: info))
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
-                    PlaybackProgress(info: info, tint: nowPlaying.accentColor ?? .white)
-                        .padding(.top, 3)
+                    if info.isAd {
+                        AdBanner(canSkip: info.canSkipAd, skip: nowPlaying.skipAd)
+                            .padding(.top, 3)
+                    } else {
+                        PlaybackProgress(info: info, tint: nowPlaying.accentColor ?? .white, seek: nowPlaying.seek)
+                    }
                     PlaybackControls(nowPlaying: nowPlaying, isPlaying: info.isPlaying)
                 }
                 .lineLimit(1)
@@ -95,16 +106,84 @@ struct ArtworkView: View {
     }
 }
 
+/// Shows the lyric mood of the song and lets the user pick another one.
+private struct MoodMenu: View {
+    @ObservedObject var lyricMoods: LyricMoodService
+
+    var body: some View {
+        Menu {
+            ForEach(LyricMood.allCases) { mood in
+                Button {
+                    lyricMoods.setOverride(mood)
+                } label: {
+                    Label(mood.title, systemImage: mood.symbol)
+                }
+            }
+            if lyricMoods.isOverridden {
+                Divider()
+                Button("Automatic") { lyricMoods.setOverride(nil) }
+            }
+        } label: {
+            Image(systemName: lyricMoods.mood.symbol)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(lyricMoods.mood.gradient)
+                .frame(width: 18, height: 16)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(Text("Lyric mood"))
+    }
+}
+
+/// Shown instead of the progress bar while a YouTube ad plays.
+private struct AdBanner: View {
+    let canSkip: Bool
+    let skip: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("Ad")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(.yellow))
+            Spacer()
+            if canSkip {
+                Button(action: skip) {
+                    Label("Skip Ad", systemImage: "forward.end.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.white.opacity(0.18)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(height: 16)
+    }
+}
+
 /// Progress bar and times. The position is extrapolated locally, and the
-/// timeline only ticks while this view is on screen.
+/// timeline only ticks while this view is on screen. Click or drag the bar
+/// to jump to another position.
 private struct PlaybackProgress: View {
     let info: NowPlayingInfo
     let tint: Color
+    let seek: (TimeInterval) -> Void
+
+    /// Where the bar is being dragged to, 0…1; nil when not dragging.
+    @State private var dragFraction: Double?
 
     var body: some View {
         if let duration = info.duration, duration > 0 {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                let position = info.position(at: context.date)
+                let position = dragFraction.map { $0 * duration } ?? info.position(at: context.date)
                 VStack(spacing: 2) {
                     GeometryReader { proxy in
                         ZStack(alignment: .leading) {
@@ -113,8 +192,23 @@ private struct PlaybackProgress: View {
                                 .fill(tint)
                                 .frame(width: proxy.size.width * min(1, position / duration))
                         }
+                        .frame(height: dragFraction == nil ? 4 : 6)
+                        .frame(maxHeight: .infinity)
+                        // Taller than the bar so it's easy to grab.
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    dragFraction = Self.fraction(value.location.x, width: proxy.size.width)
+                                }
+                                .onEnded { value in
+                                    seek(Self.fraction(value.location.x, width: proxy.size.width) * duration)
+                                    dragFraction = nil
+                                }
+                        )
+                        .animation(.easeOut(duration: 0.12), value: dragFraction == nil)
                     }
-                    .frame(height: 4)
+                    .frame(height: 10)
                     HStack {
                         Text(Self.format(position))
                         Spacer()
@@ -126,6 +220,10 @@ private struct PlaybackProgress: View {
                 }
             }
         }
+    }
+
+    private static func fraction(_ x: CGFloat, width: CGFloat) -> Double {
+        width > 0 ? min(1, max(0, x / width)) : 0
     }
 
     static func format(_ seconds: TimeInterval) -> String {

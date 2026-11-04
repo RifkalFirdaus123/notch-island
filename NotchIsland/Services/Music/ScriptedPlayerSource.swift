@@ -15,6 +15,11 @@ nonisolated struct ScriptedPlayer: Sendable {
     func commandScript(_ command: String) -> String {
         "tell application id \"\(bundleID)\" to \(command)"
     }
+
+    /// Spotify and Music both take the position in seconds.
+    func seekCommand(to position: TimeInterval) -> String {
+        "set player position to " + String(format: "%.2f", max(0, position))
+    }
 }
 
 /// Spotify or Music. Refreshes when the app posts its change notification,
@@ -108,6 +113,17 @@ final class ScriptedPlayerSource: MusicSource {
     func playPause() { command("playpause") }
     func nextTrack() { command("next track") }
     func previousTrack() { command("previous track") }
+
+    func seek(to position: TimeInterval) {
+        guard var newInfo = info else { return }
+        // Show the new position right away, and drop any refresh already in
+        // flight so it can't snap the bar back.
+        generation += 1
+        newInfo.elapsed = position
+        newInfo.timestamp = Date()
+        update(info: newInfo, issue: issue)
+        command(player.seekCommand(to: position))
+    }
 
     private func command(_ command: String) {
         guard isRunning else { return }

@@ -54,6 +54,8 @@ final class NowPlayingService: ObservableObject {
     func playPause() { active?.playPause() }
     func nextTrack() { active?.nextTrack() }
     func previousTrack() { active?.previousTrack() }
+    func seek(to position: TimeInterval) { active?.seek(to: position) }
+    func skipAd() { active?.skipAd() }
 
     // MARK: - Choosing a source
 

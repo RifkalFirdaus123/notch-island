@@ -9,11 +9,31 @@ struct ProjectsTabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(verbatim: projects.folder.lastPathComponent)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                if projects.folders.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(projects.folders) { folder in
+                                FolderChip(
+                                    name: folder.name,
+                                    isSelected: folder == projects.selectedFolder
+                                ) { projects.select(folder) }
+                            }
+                        }
+                    }
+                } else {
+                    Text(verbatim: projects.selectedFolder?.name ?? projects.folder.lastPathComponent)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
                 Spacer()
+                Button { projects.promptNewProject() } label: {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.7))
+                .help("New Project Folder…")
                 Menu {
+                    Button("New Project Folder…") { projects.promptNewProject() }
                     Button("Refresh") { projects.refresh() }
                     Button("Show Folder in Finder") { projects.openFolderInFinder() }
                 } label: {
@@ -45,6 +65,26 @@ struct ProjectsTabView: View {
             }
         }
         .onAppear { projects.refresh() }
+    }
+}
+
+private struct FolderChip: View {
+    let name: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(verbatim: name)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(isSelected ? 0.95 : 0.5))
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+                .frame(height: 20)
+                .background(Capsule().fill(.white.opacity(isSelected ? 0.18 : 0.06)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 

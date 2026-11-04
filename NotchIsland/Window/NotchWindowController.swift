@@ -58,6 +58,12 @@ final class NotchWindowController {
             }
             .store(in: &cancellables)
 
+        // Redraw when a call starts or ends, or the mic is muted.
+        viewModel.mic.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.viewModel.objectWillChange.send() }
+            .store(in: &cancellables)
+
         // Show or hide the lyric strip and now-playing row while idle.
         viewModel.$lyricLine
             .map { $0 != nil }
@@ -114,7 +120,7 @@ final class NotchWindowController {
             .sink { [weak self] _ in self?.updateFullscreenSuppression() }
             .store(in: &cancellables)
 
-        // Settings changed: fullscreen option, enabled tabs, strip height.
+        // Settings changed: fullscreen option, enabled tabs, strip height, idle size.
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
@@ -183,9 +189,14 @@ final class NotchWindowController {
         guard !viewModel.isSuppressed, viewModel.geometry != nil else { return }
         let point = NSEvent.mouseLocation
         let inside = activeRegion().contains(point)
+        let overMic = viewModel.showsMic && viewModel.micBubbleScreenRect.insetBy(dx: -3, dy: -3).contains(point)
+        // Idle, the panel lets clicks through to the menu bar; take them only over the mic button.
+        panel.ignoresMouseEvents = !(viewModel.state.isOpen || overMic)
 
         switch event.type {
         case .leftMouseDown:
+            // Muting shouldn't close the panel or start a drag watch.
+            if overMic { return }
             dragChangeCountAtMouseDown = NSPasteboard(name: .drag).changeCount
             mouseDownInPanel = inside && viewModel.state.isOpen
             // Clicking elsewhere closes the panel immediately.
@@ -222,8 +233,8 @@ final class NotchWindowController {
     /// Like `activeRegion`, but more generous around the idle notch so a file
     /// dragged *toward* it opens the shelf.
     private func dropRegion() -> CGRect {
-        guard let geometry = viewModel.geometry, !viewModel.state.isOpen else { return activeRegion() }
-        return geometry.notchRect.insetBy(dx: -Self.dropApproachSlop.width, dy: -Self.dropApproachSlop.height)
+        guard viewModel.geometry != nil, !viewModel.state.isOpen else { return activeRegion() }
+        return viewModel.screenRect(for: .collapsed).insetBy(dx: -Self.dropApproachSlop.width, dy: -Self.dropApproachSlop.height)
     }
 
     private func openForDrop() {
@@ -239,13 +250,13 @@ final class NotchWindowController {
     /// Region that counts as "on the island": the notch (plus the now-playing
     /// row beside it) while idle, the visible shape while open.
     private func activeRegion() -> CGRect {
-        guard let geometry = viewModel.geometry else { return .zero }
+        guard viewModel.geometry != nil else { return .zero }
         let rect: CGRect
         switch viewModel.state {
         case .hover, .expanded: rect = viewModel.screenRect(for: viewModel.state)
         // Not the lyric strip itself, so it doesn't open while reading.
         case .playing, .lyric: rect = viewModel.screenRect(for: .playing)
-        case .collapsed: rect = geometry.notchRect
+        case .collapsed: rect = viewModel.screenRect(for: .collapsed)
         }
         // Negative inset also extends past the top edge, so the topmost
         // pixel row is inside.

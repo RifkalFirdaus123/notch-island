@@ -7,10 +7,27 @@ struct HomeTabView: View {
     @ObservedObject var battery: BatteryService
     @ObservedObject var systemStats: SystemStatsService
     let nowPlaying: NowPlayingService
+    let lyricMoods: LyricMoodService
+
+    @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
 
     var body: some View {
+        // An overlay, so the rest of the tab keeps its place: the band
+        // above the now-playing block and left of the clock is empty.
+        content
+            .overlay(alignment: .top) {
+                if buddyEnabled {
+                    HomeRobot(nowPlaying: nowPlaying, lyricMoods: lyricMoods)
+                        .allowsHitTesting(false)
+                }
+            }
+        .onAppear { systemStats.beginObserving() }
+        .onDisappear { systemStats.endObserving() }
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: 16) {
-            NowPlayingView(nowPlaying: nowPlaying)
+            NowPlayingView(nowPlaying: nowPlaying, lyricMoods: lyricMoods)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(clock.now, format: .dateTime.hour().minute())
@@ -38,8 +55,23 @@ struct HomeTabView: View {
             .fixedSize(horizontal: true, vertical: false)
             .animation(.default, value: clock.now)
         }
-        .onAppear { systemStats.beginObserving() }
-        .onDisappear { systemStats.endObserving() }
+    }
+}
+
+/// The robot under the notch: idles on its own, puts on a headset when music plays.
+private struct HomeRobot: View {
+    @ObservedObject var nowPlaying: NowPlayingService
+    @ObservedObject var lyricMoods: LyricMoodService
+
+    var body: some View {
+        RobotBuddyView(
+            scale: IslandViewModel.homeBuddyHeight / 36,
+            isListening: nowPlaying.info?.isPlaying == true,
+            mood: lyricMoods.mood,
+            isAngry: nowPlaying.info?.isAd == true
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: IslandViewModel.homeBuddyHeight)
     }
 }
 

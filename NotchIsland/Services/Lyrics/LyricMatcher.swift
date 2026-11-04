@@ -45,14 +45,23 @@ nonisolated enum LyricMatcher {
             let left = cleanTitle[..<dash.lowerBound].trimmingCharacters(in: .whitespaces)
             let right = cleanTitle[dash.upperBound...].trimmingCharacters(in: .whitespaces)
             if !left.isEmpty && !right.isEmpty {
-                cleanArtist = left
-                cleanTitle = right
+                // The channel usually is the artist: "Song - Artist" uploads
+                // from the artist's own channel are the other way round.
+                let channelIsRight = isSameName(cleanArtist, right) && !isSameName(cleanArtist, left)
+                cleanArtist = channelIsRight ? right : left
+                cleanTitle = channelIsRight ? left : right
             }
         }
         return LyricQuery(
             title: stripFeaturing(cleanTitle), artist: cleanArtist, album: album,
             duration: duration, durationTolerance: 8
         )
+    }
+
+    /// Same name once case, accents and punctuation are ignored.
+    private static func isSameName(_ a: String, _ b: String) -> Bool {
+        let a = normalize(a), b = normalize(b)
+        return !a.isEmpty && a == b
     }
 
     /// Removes "(Official Video)", "[MV]", "| Lyrics" style decorations.

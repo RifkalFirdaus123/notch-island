@@ -6,17 +6,15 @@ struct LyricStripView: View {
     let line: String
     let notchHeight: CGFloat
     let stripHeight: CGFloat
-    var tint: Color
-
-    static let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+    var mood: LyricMood = .neutral
 
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: notchHeight)
             ZStack {
                 Text(line)
-                    .font(Font(Self.font))
-                    .foregroundStyle(tint)
+                    .font(Font(mood.font))
+                    .foregroundStyle(mood.gradient)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .padding(.horizontal, 14)
@@ -31,10 +29,11 @@ struct LyricStripView: View {
             .clipped()
         }
         .animation(.easeInOut(duration: 0.3), value: line)
+        .animation(.easeInOut(duration: 0.4), value: mood)
     }
 
-    /// Width the text needs, including padding.
-    static func textWidth(_ line: String) -> CGFloat {
-        ceil((line as NSString).size(withAttributes: [.font: font]).width) + 28
+    /// Width the text needs in the mood's font, including padding.
+    static func textWidth(_ line: String, mood: LyricMood) -> CGFloat {
+        ceil((line as NSString).size(withAttributes: [.font: mood.font]).width) + 28
     }
 }

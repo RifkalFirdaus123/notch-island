@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsController: SettingsWindowController?
     private var statusItem: NSStatusItem?
     private var lyrics: LyricsService?
+    private var lyricMoods: LyricMoodService?
     private var cancellables = Set<AnyCancellable>()
 
     /// Unit tests load the app as their host; don't put up the island then.
@@ -30,7 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         nowPlaying.start()
         lyrics.start()
         self.lyrics = lyrics
+        let lyricMoods = LyricMoodService(nowPlaying: nowPlaying)
+        lyricMoods.start()
+        self.lyricMoods = lyricMoods
 
+        let mic = MicService()
+        mic.start()
         let viewModel = IslandViewModel(
             battery: battery,
             systemStats: SystemStatsService(),
@@ -39,11 +45,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             shelf: shelf,
             projects: ProjectsService(),
             storage: StorageService(),
-            nowPlaying: nowPlaying
+            nowPlaying: nowPlaying,
+            lyricMoods: lyricMoods,
+            mic: mic
         )
         lyrics.$currentLine
             .receive(on: RunLoop.main)
             .sink { [weak viewModel] line in viewModel?.lyricLine = line }
+            .store(in: &cancellables)
+        lyricMoods.$mood
+            .receive(on: RunLoop.main)
+            .sink { [weak viewModel] mood in viewModel?.lyricMood = mood }
             .store(in: &cancellables)
 
         let controller = NotchWindowController(viewModel: viewModel)
