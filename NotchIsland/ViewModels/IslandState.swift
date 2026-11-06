@@ -24,7 +24,11 @@ enum IslandTab: Int, CaseIterable, Identifiable {
     case shelf
     case projects
     case storage
+<<<<<<< HEAD
     case dev
+=======
+    case kanban
+>>>>>>> upstream/main
 
     var id: Int { rawValue }
 
@@ -35,12 +39,20 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         case .shelf: "tray.full.fill"
         case .projects: "folder.fill"
         case .storage: "internaldrive.fill"
+<<<<<<< HEAD
         case .dev: "chevron.left.forwardslash.chevron.right"
+=======
+        case .kanban: "checklist"
+>>>>>>> upstream/main
         }
     }
 
     /// The left ear only fits three icons; the rest sit beside the title.
+<<<<<<< HEAD
     var isInRightEar: Bool { self == .projects || self == .storage || self == .dev }
+=======
+    var isInRightEar: Bool { self == .projects || self == .storage || self == .kanban }
+>>>>>>> upstream/main
 
     var title: LocalizedStringKey {
         switch self {
@@ -49,7 +61,11 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         case .shelf: "File Shelf"
         case .projects: "Projects"
         case .storage: "Storage"
+<<<<<<< HEAD
         case .dev: "Dev"
+=======
+        case .kanban: "Tasks"
+>>>>>>> upstream/main
         }
     }
 }

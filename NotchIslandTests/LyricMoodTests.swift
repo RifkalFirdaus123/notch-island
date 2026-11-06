@@ -46,3 +46,22 @@ struct LyricMoodTests {
         #expect(ITunesGenreClient.bestMatch(title: "Lampu Merah", artist: "The Lantis", in: results) == nil)
     }
 }
+
+struct AudioFeaturesMoodTests {
+    @Test(arguments: [
+        (AudioFeatures(valence: 0.24, energy: 0.92, tempo: 148), LyricMood.intense),
+        (AudioFeatures(valence: 0.69, energy: 0.56, tempo: 121), .upbeat),
+        (AudioFeatures(valence: 0.80, energy: 0.85, tempo: 128), .upbeat),
+        (AudioFeatures(valence: 0.20, energy: 0.25, tempo: 70), .calm),
+        (AudioFeatures(valence: 0.40, energy: 0.50, tempo: 95), .calm),
+    ])
+    func moodFromAudio(features: AudioFeatures, expected: LyricMood) {
+        #expect(LyricMoodClassifier.mood(features: features) == expected)
+    }
+
+    @Test func titleBeatsAudioAudioBeatsGenre() {
+        let loud = AudioFeatures(valence: 0.2, energy: 0.9, tempo: 140)
+        #expect(LyricMoodClassifier.mood(genre: "Pop", title: "Song", features: loud) == .intense)
+        #expect(LyricMoodClassifier.mood(genre: "Pop", title: "Song (Acoustic)", features: loud) == .calm)
+    }
+}

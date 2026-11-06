@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let clipboard = ClipboardService()
         clipboard.start()
 
+        let kanban = KanbanService()
+        kanban.onRequestSignIn = { [weak self] in self?.showSettings() }
+        let mic = MicService()
+        mic.start()
         let viewModel = IslandViewModel(
             battery: battery,
             systemStats: SystemStatsService(),
@@ -47,11 +51,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             shelf: shelf,
             projects: ProjectsService(),
             storage: StorageService(),
+            kanban: kanban,
             nowPlaying: nowPlaying,
             lyricMoods: lyricMoods,
+<<<<<<< HEAD
             ports: PortsService(),
             devActivity: devActivity,
             clipboard: clipboard
+=======
+            mic: mic
+>>>>>>> upstream/main
         )
         lyrics.$currentLine
             .receive(on: RunLoop.main)
@@ -71,14 +80,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController = controller
 
         settingsController = SettingsWindowController {
-            SettingsView(nowPlaying: nowPlaying, shelfDirectory: shelf.filesDirectory)
+            SettingsView(nowPlaying: nowPlaying, kanban: kanban, shelfDirectory: shelf.filesDirectory)
         }
         installStatusItem()
     }
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "NotchIsland")
+        item.button?.image = Self.robotEyesIcon()
 
         let menu = NSMenu()
         let about = NSMenuItem(
@@ -105,6 +114,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ))
         item.menu = menu
         statusItem = item
+    }
+
+    /// The robot's two rounded eyes, each with a little shine cut out, as a
+    /// template image so the menu bar tints it for light and dark.
+    private static func robotEyesIcon() -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+            let eye = NSSize(width: 6, height: 8.5), gap: CGFloat = 3
+            let path = NSBezierPath()
+            path.windingRule = .evenOdd
+            for x in [(18 - gap) / 2 - eye.width, (18 + gap) / 2] {
+                let rect = NSRect(x: x, y: (18 - eye.height) / 2, width: eye.width, height: eye.height)
+                path.append(NSBezierPath(roundedRect: rect, xRadius: 2.2, yRadius: 2.2))
+                path.append(NSBezierPath(ovalIn: NSRect(x: rect.midX + 0.2, y: rect.minY + 1.4, width: 1.9, height: 1.9)))
+            }
+            NSColor.black.setFill()
+            path.fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "NotchIsland"
+        return image
     }
 
     @objc private func showSettings() {

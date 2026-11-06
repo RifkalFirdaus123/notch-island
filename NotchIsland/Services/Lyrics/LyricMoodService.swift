@@ -11,8 +11,13 @@ final class LyricMoodService: ObservableObject {
 
     private let nowPlaying: NowPlayingService
     private let provider: GenreProviding
+    private let featuresProvider: AudioFeaturesProviding
     /// Genres looked up this session, by song key; nil means not found.
     private var genres: [String: String?] = [:]
+    /// Audio analyses by song key; found ones are kept between launches.
+    private var features: [String: AudioFeatures?] = [:]
+    private static let featuresCacheKey = "moodFeaturesCache"
+    private static let featuresCacheLimit = 300
     private var songKey: String?
     /// The current song's raw title, and the cleaned title and artist to search for.
     private var songTitle = ""
@@ -21,11 +26,35 @@ final class LyricMoodService: ObservableObject {
     /// Song key the last genre lookup was started for.
     private var lookedUpKey: String?
     private var lookupTask: Task<Void, Never>?
+    private var featuresLookedUpKey: String?
+    private var featuresTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
-    init(nowPlaying: NowPlayingService, provider: GenreProviding = ITunesGenreClient()) {
+    init(
+        nowPlaying: NowPlayingService,
+        provider: GenreProviding = ITunesGenreClient(),
+        featuresProvider: AudioFeaturesProviding = ReccoBeatsClient()
+    ) {
         self.nowPlaying = nowPlaying
         self.provider = provider
+        self.featuresProvider = featuresProvider
+        for (key, data) in Self.storedFeatures {
+            features[key] = .some(AudioFeatures(valence: data.valence, energy: data.energy, tempo: data.tempo))
+        }
+    }
+
+    private static var storedFeatures: [String: AudioFeatures] {
+        guard let data = UserDefaults.standard.data(forKey: featuresCacheKey) else { return [:] }
+        return (try? JSONDecoder().decode([String: AudioFeatures].self, from: data)) ?? [:]
+    }
+
+    private func remember(_ found: AudioFeatures, for key: String) {
+        var stored = Self.storedFeatures
+        if stored.count >= Self.featuresCacheLimit { stored.removeAll() }
+        stored[key] = found
+        if let data = try? JSONEncoder().encode(stored) {
+            UserDefaults.standard.set(data, forKey: Self.featuresCacheKey)
+        }
     }
 
     var isEnabled: Bool { UserDefaults.standard.bool(forKey: SettingsKeys.lyricMoodStyle) }
@@ -61,6 +90,7 @@ final class LyricMoodService: ObservableObject {
         guard let info, !info.isAd else {
             songKey = nil
             lookupTask?.cancel()
+            featuresTask?.cancel()
             refresh()
             return
         }
@@ -77,6 +107,7 @@ final class LyricMoodService: ObservableObject {
         searchTitle = query.title
         searchArtist = query.artist
         lookupTask?.cancel()
+        featuresTask?.cancel()
         refresh()
     }
 
@@ -93,6 +124,20 @@ final class LyricMoodService: ObservableObject {
         }
     }
 
+    private func lookUpFeatures(for key: String) {
+        featuresLookedUpKey = key
+        featuresTask?.cancel()
+        featuresTask = Task { [weak self, featuresProvider, title = searchTitle, artist = searchArtist] in
+            // Network trouble isn't remembered, so a later play tries again.
+            guard let found = try? await featuresProvider.features(title: title, artist: artist),
+                  !Task.isCancelled, let self
+            else { return }
+            self.features[key] = .some(found)
+            self.remember(found, for: key)
+            self.refresh()
+        }
+    }
+
     private func refresh() {
         guard isEnabled, let songKey else {
             set(.neutral, overridden: false)
@@ -104,8 +149,10 @@ final class LyricMoodService: ObservableObject {
         }
         // Once per song, also when switched on while a song was already playing.
         if genres[songKey] == nil, lookedUpKey != songKey { lookUpGenre(for: songKey) }
+        if features[songKey] == nil, featuresLookedUpKey != songKey { lookUpFeatures(for: songKey) }
         let genre = genres[songKey] ?? nil
-        set(LyricMoodClassifier.mood(genre: genre, title: songTitle), overridden: false)
+        let analysed = features[songKey] ?? nil
+        set(LyricMoodClassifier.mood(genre: genre, title: songTitle, features: analysed), overridden: false)
     }
 
     private func set(_ newMood: LyricMood, overridden: Bool) {

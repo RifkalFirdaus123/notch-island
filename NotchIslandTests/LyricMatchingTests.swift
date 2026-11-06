@@ -49,6 +49,16 @@ struct LyricMatchingTests {
         #expect(query.durationTolerance > 3)
     }
 
+    @Test func channelDecidesWhichSideIsTheArtist() {
+        // "Song - Artist" from the artist's own channel.
+        let query = LyricMatcher.query(
+            title: "Multo - Cup of Joe (Official Lyric Video)", artist: "Cup of Joe", album: "",
+            duration: 213, fromVideo: true
+        )
+        #expect(query.artist == "Cup of Joe")
+        #expect(query.title == "Multo")
+    }
+
     @Test func keepsMusicAppMetadataAsIs() {
         let query = LyricMatcher.query(
             title: "Yellow", artist: "Coldplay", album: "Parachutes", duration: 266, fromVideo: false

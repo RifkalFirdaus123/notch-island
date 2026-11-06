@@ -8,16 +8,22 @@ import AppKit
 /// Events option. Browsers post no change notifications, so this polls, but
 /// only while the browser is running and at a slow rate.
 final class BrowserSource: MusicSource {
-    private static let pollWhilePlaying: Duration = .seconds(2)
+    /// Short, so an ad that starts between tracks is noticed almost at once.
+    private static let pollWhilePlaying: Duration = .milliseconds(500)
     private static let pollIdle: Duration = .seconds(5)
-    /// Faster while an ad plays, so auto-skip reacts soon after the button appears.
-    private static let pollDuringAd: Duration = .seconds(1)
+    /// Also short while an ad plays, so auto-skip reacts soon after the button appears.
+    private static let pollDuringAd: Duration = .milliseconds(500)
     /// How long to leave a tab alone after it didn't answer (e.g. a tab the
     /// browser put to sleep), so it doesn't stall every poll.
     private static let unresponsiveBackoff: TimeInterval = 60
     /// Keep showing the last track this long when a poll fails (the browser
     /// was busy), instead of flashing "Nothing playing".
     private static let failureGrace: TimeInterval = 15
+    /// Keep the last track this long when no tab answers: a tab is briefly
+    /// unreadable while YouTube switches videos or the page is busy.
+    private static let missingGrace: TimeInterval = 5
+    /// A tab must time out this many polls in a row before it is left alone.
+    private static let timeoutsBeforeBackoff = 3
 
     let kind = MusicSourceKind.browser
     let displayName: String
@@ -32,6 +38,10 @@ final class BrowserSource: MusicSource {
     private var tab: BrowserTab?
     /// Tab id literals that timed out, and when.
     private var unresponsiveTabs: [String: Date] = [:]
+    /// Consecutive timeouts per tab id literal.
+    private var timeoutCounts: [String: Int] = [:]
+    /// When a tab last answered.
+    private var lastTabSeen: Date?
     private var lastSuccess: Date?
 
     init(displayName: String, bundleID: String, runner: AppleScriptRunner = .shared) {
@@ -68,12 +78,14 @@ final class BrowserSource: MusicSource {
         pollTask?.cancel()
         pollTask = nil
         tab = nil
+        lastTabSeen = nil
         update(info: nil, issue: nil)
     }
 
     private func poll() async {
         guard isRunning else {
             tab = nil
+            lastTabSeen = nil
             update(info: nil, issue: nil)
             return
         }
@@ -86,13 +98,30 @@ final class BrowserSource: MusicSource {
         switch result {
         case .success(let poll):
             lastSuccess = now
-            for id in poll.timedOut { unresponsiveTabs[id] = now }
+            for id in poll.timedOut {
+                timeoutCounts[id, default: 0] += 1
+                if timeoutCounts[id, default: 0] >= Self.timeoutsBeforeBackoff { unresponsiveTabs[id] = now }
+            }
+            for answered in poll.tabs { timeoutCounts[answered.tabIDLiteral] = nil }
             let tabs = poll.tabs
             // Prefer a tab that is actually playing.
-            let chosen = tabs.first { $0.isPlaying } ?? tabs.first
+            let found = tabs.first { $0.isPlaying } ?? tabs.first
+            if let previous = tab, let lastTabSeen, now.timeIntervalSince(lastTabSeen) < Self.missingGrace,
+               poll.timedOut.contains(previous.tabIDLiteral), found?.isPlaying != true {
+                // The tab we were reading hiccuped; don't swap it for a
+                // paused one or for nothing.
+                return
+            }
+            guard let chosen = found else {
+                if let lastTabSeen, now.timeIntervalSince(lastTabSeen) < Self.missingGrace { return }
+                tab = nil
+                update(info: nil, issue: nil)
+                return
+            }
+            lastTabSeen = now
             tab = chosen
-            update(info: chosen?.info, issue: nil)
-            if chosen?.info.canSkipAd == true, UserDefaults.standard.bool(forKey: SettingsKeys.autoSkipAds) {
+            update(info: chosen.info, issue: nil)
+            if chosen.info.canSkipAd, UserDefaults.standard.bool(forKey: SettingsKeys.autoSkipAds) {
                 skipAd()
             }
         case .failure(.notAuthorized):
@@ -160,8 +189,10 @@ nonisolated enum BrowserScripts {
     if(!v)return '';var m=navigator.mediaSession&&navigator.mediaSession.metadata;var a='';\
     if(m&&m.artwork&&m.artwork.length){a=m.artwork[m.artwork.length-1].src;}\
     var pl=document.getElementById('movie_player');var ad=!!(pl&&pl.classList.contains('ad-showing'));\
-    var sb=document.querySelector('\(skipButtonSelector)');\
-    return JSON.stringify({ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
+    var sb=document.querySelector('\(skipButtonSelector)');var c='';\
+    try{var pr=pl&&pl.getPlayerResponse&&pl.getPlayerResponse();var mf=pr&&pr.microformat&&pr.microformat.playerMicroformatRenderer;\
+    c=(mf&&mf.category)||'';}catch(e){}if(!c){var g=document.querySelector('meta[itemprop=genre]');if(g)c=g.content||'';}\
+    return JSON.stringify({c:c,ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
     ar:(m&&m.artist)?m.artist:'',al:(m&&m.album)?m.album:'',art:a,t:v.currentTime||0,\
     d:isFinite(v.duration)?v.duration:0,p:v.paused,ad:ad,sk:ad&&!!sb&&sb.offsetParent!==null});})()
     """
@@ -213,6 +244,7 @@ nonisolated enum BrowserScripts {
             set skipIDs to {\(skipping.joined(separator: ", "))}
             set out to {}
             repeat with w in windows
+                try
                 set tabURLs to URL of every tab of w
                 set tabIDs to id of every tab of w
                 repeat with i from 1 to count of tabURLs
@@ -236,6 +268,10 @@ nonisolated enum BrowserScripts {
                         set end of out to {id of w, tid, u, j}
                     end if
                 end repeat
+                on error windowMsg number windowNum
+                    -- A window that can't be read (e.g. without tabs) must not hide the rest.
+                    if windowMsg contains "JavaScript" or windowNum is -1743 then error windowMsg number windowNum
+                end try
             end repeat
             return out
             end timeout
@@ -291,6 +327,8 @@ nonisolated enum BrowserScripts {
         var p: Bool
         var ad: Bool?
         var sk: Bool?
+        /// YouTube's category for the video ("Music", "Gaming"…), if found.
+        var c: String?
     }
 
     static func parseInfo(json: String, url: String) -> NowPlayingInfo? {
@@ -315,8 +353,23 @@ nonisolated enum BrowserScripts {
             isPlaying: !state.p,
             artworkURL: artwork,
             isAd: state.ad ?? false,
-            canSkipAd: state.sk ?? false
+            canSkipAd: state.sk ?? false,
+            isVideo: !isMusic(url: url, category: state.c ?? "", title: state.ti, artist: state.ar)
         )
+    }
+
+    /// YouTube Music is always music; on YouTube, trust the video's category
+    /// and otherwise guess from the title and channel.
+    static func isMusic(url: String, category: String, title: String, artist: String) -> Bool {
+        if URLComponents(string: url)?.host == "music.youtube.com" { return true }
+        if !category.isEmpty { return category.caseInsensitiveCompare("Music") == .orderedSame }
+        let channel = artist.lowercased()
+        if channel.hasSuffix(" - topic") || channel.contains("vevo") { return true }
+        let name = title.lowercased()
+        let hints = ["official music video", "official video", "official audio", "music video", "lyric",
+                     "lirik", "(audio)", "[audio]", "(mv)", "[mv]", " mv ", "ft.", "feat.", "karaoke",
+                     "remix", "acoustic", "cover", "live session", "visualizer"]
+        return hints.contains { name.contains($0) }
     }
 
     /// Arc returns the script's result JSON-encoded, so our JSON arrives

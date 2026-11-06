@@ -86,11 +86,21 @@ nonisolated enum LyricMoodClassifier {
           "reggae", "latin", "disco", "funk", "dangdut", "ska", "k-pop", "j-pop"], .upbeat),
     ]
 
-    static func mood(genre: String?, title: String) -> LyricMood {
+    /// The sound itself: energy says how hard, valence how bright.
+    static func mood(features: AudioFeatures) -> LyricMood {
+        if features.energy >= 0.65 { return features.valence >= 0.45 ? .upbeat : .intense }
+        if features.energy < 0.4 { return .calm }
+        return features.valence >= 0.5 ? .upbeat : .calm
+    }
+
+    /// Title hints win (they describe this exact upload), then the audio
+    /// analysis, then the store genre.
+    static func mood(genre: String?, title: String, features: AudioFeatures? = nil) -> LyricMood {
         let lowerTitle = title.lowercased()
         for hint in titleHints where hint.words.contains(where: lowerTitle.contains) {
             return hint.mood
         }
+        if let features { return mood(features: features) }
         guard let genre = genre?.lowercased(), !genre.isEmpty else { return .neutral }
         for hint in genreHints where hint.words.contains(where: genre.contains) {
             return hint.mood
@@ -115,11 +125,18 @@ nonisolated struct ITunesGenreClient: GenreProviding {
         var trackName: String
         var artistName: String
         var primaryGenreName: String?
+        /// 30 second sample of the song.
+        var previewUrl: URL? = nil
     }
 
     var session: URLSession = .shared
 
     func genre(title: String, artist: String) async throws -> String? {
+        try await bestResult(title: title, artist: artist)?.primaryGenreName
+    }
+
+    /// The store's closest match for the song, or nil when none is close enough.
+    func bestResult(title: String, artist: String) async throws -> Result? {
         var components = URLComponents(string: "https://itunes.apple.com/search")!
         components.queryItems = [
             URLQueryItem(name: "term", value: [artist, title].filter { !$0.isEmpty }.joined(separator: " ")),
@@ -131,7 +148,7 @@ nonisolated struct ITunesGenreClient: GenreProviding {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else { throw URLError(.badServerResponse) }
         let results = try JSONDecoder().decode(Response.self, from: data).results
-        return Self.bestMatch(title: title, artist: artist, in: results)?.primaryGenreName
+        return Self.bestMatch(title: title, artist: artist, in: results)
     }
 
     /// The closest result by title and artist, or nil if none is close enough.
@@ -145,5 +162,24 @@ nonisolated struct ITunesGenreClient: GenreProviding {
             if score > (best?.score ?? 0.6) { best = (result, score) }
         }
         return best?.result
+    }
+}
+
+extension View {
+    /// Fills the view with the mood's gradient, cross-fading over `duration`
+    /// when the mood changes. Gradients with different stops don't
+    /// interpolate on their own, so each mood's gradient is layered and
+    /// faded in or out.
+    func moodForeground(_ mood: LyricMood, duration: Double = 1.5) -> some View {
+        opacity(0)
+            .overlay {
+                ZStack {
+                    ForEach(LyricMood.allCases) { candidate in
+                        candidate.gradient.opacity(candidate == mood ? 1 : 0)
+                    }
+                }
+                .mask(self)
+            }
+            .animation(.easeInOut(duration: duration), value: mood)
     }
 }

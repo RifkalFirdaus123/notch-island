@@ -53,7 +53,8 @@ struct ExpandedIslandView: View {
                 battery: viewModel.battery,
                 systemStats: viewModel.systemStats,
                 nowPlaying: viewModel.nowPlaying,
-                lyricMoods: viewModel.lyricMoods
+                lyricMoods: viewModel.lyricMoods,
+                lyricLine: viewModel.lyricLine
             )
         case .camera:
             CameraTabView(camera: viewModel.camera)
@@ -63,6 +64,7 @@ struct ExpandedIslandView: View {
             ProjectsTabView(projects: viewModel.projects)
         case .storage:
             StorageTabView(storage: viewModel.storage)
+<<<<<<< HEAD
         case .dev:
             DevTabView(
                 activity: viewModel.devActivity,
@@ -70,6 +72,10 @@ struct ExpandedIslandView: View {
                 clipboard: viewModel.clipboard,
                 wantsKeyboard: $viewModel.wantsKeyboard
             )
+=======
+        case .kanban:
+            KanbanTabView(kanban: viewModel.kanban)
+>>>>>>> upstream/main
         }
     }
 }
