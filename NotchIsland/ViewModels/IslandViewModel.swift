@@ -13,6 +13,10 @@ final class IslandViewModel: ObservableObject {
     @Published var lyricLine: String?
     /// Mirrors `LyricMoodService.mood`; styles the lyric strip.
     @Published var lyricMood: LyricMood = .neutral
+    /// Mirrors `DevActivityService.alert`; drives the `.alert` idle state.
+    @Published var devAlert: DevEvent?
+    /// A text field (the Hash input) is on screen and may take typing.
+    @Published var wantsKeyboard = false
 
     let battery: BatteryService
     let systemStats: SystemStatsService
@@ -24,6 +28,9 @@ final class IslandViewModel: ObservableObject {
     let kanban: KanbanService
     let nowPlaying: NowPlayingService
     let lyricMoods: LyricMoodService
+    let ports: PortsService
+    let devActivity: DevActivityService
+    let clipboard: ClipboardService
     let mic: MicService
 
     /// Width of each "ear" next to the notch in the hover state.
@@ -33,7 +40,7 @@ final class IslandViewModel: ObservableObject {
     /// The robot's scale while watching: eyes and bucket fill a square the
     /// size of the artwork.
     static let watchingRobotScale: CGFloat = 0.52
-    static let expandedBaseSize = CGSize(width: 460, height: 180)
+    static let expandedBaseSize = CGSize(width: 480, height: 180)
     /// The Tasks tab's board needs room for a few cards per column.
     static let kanbanExtraHeight: CGFloat = 90
     /// The lyric strip may grow to this fraction of the screen width.
@@ -52,6 +59,9 @@ final class IslandViewModel: ObservableObject {
         kanban: KanbanService,
         nowPlaying: NowPlayingService,
         lyricMoods: LyricMoodService,
+        ports: PortsService,
+        devActivity: DevActivityService,
+        clipboard: ClipboardService,
         mic: MicService
     ) {
         self.battery = battery
@@ -64,11 +74,15 @@ final class IslandViewModel: ObservableObject {
         self.kanban = kanban
         self.nowPlaying = nowPlaying
         self.lyricMoods = lyricMoods
+        self.ports = ports
+        self.devActivity = devActivity
+        self.clipboard = clipboard
         self.mic = mic
     }
 
     /// What to show when nobody is hovering.
     var idleState: IslandState {
+        if devAlert != nil { return .alert }
         if lyricLine != nil { return .lyric }
         return nowPlaying.info?.isPlaying == true ? .playing : .collapsed
     }
@@ -82,6 +96,7 @@ final class IslandViewModel: ObservableObject {
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
             case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
             case .storage: UserDefaults.standard.bool(forKey: SettingsKeys.featureStorage)
+            case .dev: UserDefaults.standard.bool(forKey: SettingsKeys.featureDev)
             case .kanban: UserDefaults.standard.bool(forKey: SettingsKeys.featureKanban)
             }
         }
@@ -134,6 +149,10 @@ final class IslandViewModel: ObservableObject {
             let textWidth = lyricLine.map { LyricStripView.textWidth($0, mood: lyricMood) } ?? 0
             let width = min(maxLyricWidth, max(idle.width + Self.idleEarWidth * 2, textWidth))
             return CGSize(width: width, height: idle.height + lyricStripHeight)
+        case .alert:
+            let textWidth = devAlert.map(DevAlertStripView.width(for:)) ?? 0
+            let width = min(maxLyricWidth, max(idle.width + Self.idleEarWidth * 2, textWidth))
+            return CGSize(width: width, height: idle.height + DevAlertStripView.height)
         case .hover:
             // Never smaller than the idle shape it grows out of.
             return CGSize(width: max(notch.width + Self.earWidth * 2, idle.width), height: idle.height)

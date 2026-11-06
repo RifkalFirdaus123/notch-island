@@ -27,6 +27,9 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.musicAppleMusic) private var appleMusicEnabled = true
     @AppStorage(SettingsKeys.musicBrowser) private var browserEnabled = true
     @AppStorage(SettingsKeys.shelfCopiesFiles) private var shelfCopiesFiles = false
+    @AppStorage(SettingsKeys.featureDev) private var devEnabled = true
+    @AppStorage(SettingsKeys.devAlerts) private var devAlerts = true
+    @AppStorage(SettingsKeys.clipboardHistory) private var clipboardHistory = true
 
     @State private var launchAtLogin = LaunchAtLogin.isEnabled || LaunchAtLogin.needsApproval
     @State private var launchAtLoginNeedsApproval = LaunchAtLogin.needsApproval
@@ -81,6 +84,7 @@ struct SettingsView: View {
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Storage tab", isOn: $storageEnabled)
+                Toggle("Dev tab", isOn: $devEnabled)
                 Toggle("Tasks tab (Resam Kanban)", isOn: $kanbanEnabled)
                 Toggle("Robot buddy (Home tab and beside the notch)", isOn: $buddyEnabled)
                 Toggle(isOn: $buddyPeekEnabled) {
@@ -134,6 +138,8 @@ struct SettingsView: View {
                 }
             }
 
+            ConversionSettingsSection()
+
             Section {
                 Picker("Open With", selection: $projectsEditor) {
                     ForEach(ProjectEditor.allCases) { editor in
@@ -167,6 +173,11 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            DevToolsSettingsSection(
+                devEnabled: devEnabled,
+                devAlerts: $devAlerts,
+                clipboardHistory: $clipboardHistory
+            )
             KanbanSettingsSection(kanban: kanban)
 
             Section {
@@ -246,6 +257,96 @@ struct SettingsView: View {
         }
         launchAtLogin = LaunchAtLogin.isEnabled || LaunchAtLogin.needsApproval
         launchAtLoginNeedsApproval = LaunchAtLogin.needsApproval
+    }
+}
+
+/// Dev tab options and the terminal / AI agent hook setup.
+private struct DevToolsSettingsSection: View {
+    let devEnabled: Bool
+    @Binding var devAlerts: Bool
+    @Binding var clipboardHistory: Bool
+
+    @State private var isInstalled = DevHooks.isInstalled
+    @State private var installError: String?
+    @State private var copiedSnippet: String?
+
+    var body: some View {
+        Section {
+            Toggle("Show terminal and agent alerts on the island", isOn: $devAlerts)
+            Toggle(isOn: $clipboardHistory) {
+                Text("Clipboard history")
+                Text("The last 25 copied texts, kept in memory only. Passwords from password managers are skipped.")
+            }
+            LabeledContent("Command-line helper") {
+                HStack {
+                    if isInstalled {
+                        Label("Installed", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    Button(isInstalled ? "Reinstall" : "Install") { install() }
+                    if isInstalled {
+                        Button("Test") { sendTest() }
+                    }
+                }
+            }
+            if let installError {
+                Text(installError)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
+            SnippetRow(title: "Terminal (~/.zshrc)", snippet: DevHooks.zshSnippet, copied: $copiedSnippet)
+            SnippetRow(title: "Claude Code (~/.claude/settings.json)", snippet: DevHooks.claudeSnippet, copied: $copiedSnippet)
+            SnippetRow(title: "Codex (~/.codex/config.toml)", snippet: DevHooks.codexSnippet, copied: $copiedSnippet)
+        } header: {
+            Text("Dev Tools")
+        } footer: {
+            Text("Install the helper, then paste each line into the file named. Terminal commands that run 10 seconds or longer show up when they finish; Claude Code and Codex show up when they finish a turn or need you.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .disabled(!devEnabled)
+    }
+
+    private func install() {
+        do {
+            try DevHooks.install()
+            installError = nil
+        } catch {
+            installError = String(localized: "Couldn't install the helper: \(error.localizedDescription)")
+        }
+        isInstalled = DevHooks.isInstalled
+    }
+
+    private func sendTest() {
+        let process = Process()
+        process.executableURL = DevHooks.notifyScript
+        process.arguments = ["-s", "ok", "-t", "terminal", "notchisland-notify", String(localized: "It works")]
+        try? process.run()
+    }
+}
+
+private struct SnippetRow: View {
+    let title: LocalizedStringKey
+    let snippet: String
+    @Binding var copied: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Button(copied == snippet ? "Copied" : "Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(snippet, forType: .string)
+                    copied = snippet
+                }
+            }
+            Text(verbatim: snippet)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .lineLimit(6)
+        }
     }
 }
 
@@ -458,6 +559,73 @@ private struct KanbanSettingsSection: View {
                 self.error = error.localizedDescription
             }
             isWorking = false
+        }
+    }
+}
+
+/// Status of the outside engines used for file conversion, and the
+/// optional PDF engine's install button.
+private struct ConversionSettingsSection: View {
+    @State private var isWordInstalled = ConversionEngines.isWordInstalled
+    @State private var isEngineInstalled = ConversionEngines.isPDFEngineInstalled
+    @State private var isInstalling = false
+    @State private var installError: String?
+
+    var body: some View {
+        Section {
+            LabeledContent("Microsoft Word") {
+                Text(isWordInstalled ? "Installed" : "Not installed")
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent("PDF engine") {
+                HStack {
+                    if isInstalling {
+                        ProgressView().controlSize(.small)
+                        Text("Installing…").foregroundStyle(.secondary)
+                    } else if isEngineInstalled {
+                        Text("Installed").foregroundStyle(.secondary)
+                        Button("Remove", role: .destructive) {
+                            ConversionEngines.removePDFEngine()
+                            isEngineInstalled = ConversionEngines.isPDFEngineInstalled
+                        }
+                    } else {
+                        Button("Install (about 450 MB)") { install() }
+                    }
+                }
+            }
+            if let installError {
+                Label(installError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+        } header: {
+            Text("File Conversion")
+        } footer: {
+            Text("Word documents are turned into PDF by Microsoft Word when it's installed, so the layout matches. The PDF engine (pdf2docx and pdfplumber, downloaded from PyPI into NotchIsland's folder) keeps the layout when converting PDF to Word and finds tables when converting PDF to Excel or CSV. It needs Python 3.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .onAppear {
+            isWordInstalled = ConversionEngines.isWordInstalled
+            isEngineInstalled = ConversionEngines.isPDFEngineInstalled
+        }
+    }
+
+    private func install() {
+        isInstalling = true
+        installError = nil
+        Task {
+            let error = await Task.detached(priority: .userInitiated) { () -> String? in
+                do {
+                    try ConversionEngines.installPDFEngine()
+                    return nil
+                } catch {
+                    return error.localizedDescription
+                }
+            }.value
+            installError = error
+            isEngineInstalled = ConversionEngines.isPDFEngineInstalled
+            isInstalling = false
         }
     }
 }

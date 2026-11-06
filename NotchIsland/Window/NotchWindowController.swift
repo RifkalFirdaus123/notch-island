@@ -58,17 +58,29 @@ final class NotchWindowController {
             }
             .store(in: &cancellables)
 
+        viewModel.$wantsKeyboard
+            .removeDuplicates()
+            .sink { [weak self] wants in
+                guard let self else { return }
+                self.panel.allowsKeyboard = wants
+                if !wants { self.giveBackKeyboard() }
+            }
+            .store(in: &cancellables)
+
         // Redraw when a call starts or ends, or the mic is muted.
         viewModel.mic.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.viewModel.objectWillChange.send() }
             .store(in: &cancellables)
 
-        // Show or hide the lyric strip and now-playing row while idle.
+        // Show or hide the lyric strip, dev alert and now-playing row while idle.
         viewModel.$lyricLine
             .map { $0 != nil }
             .removeDuplicates()
-            .combineLatest(viewModel.nowPlaying.$info.map { $0?.isPlaying == true }.removeDuplicates())
+            .combineLatest(
+                viewModel.nowPlaying.$info.map { $0?.isPlaying == true }.removeDuplicates(),
+                viewModel.$devAlert.removeDuplicates()
+            )
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self, !self.viewModel.state.isOpen else { return }
@@ -263,7 +275,7 @@ final class NotchWindowController {
         switch viewModel.state {
         case .hover, .expanded: rect = viewModel.screenRect(for: viewModel.state)
         // Not the lyric strip itself, so it doesn't open while reading.
-        case .playing, .lyric: rect = viewModel.screenRect(for: .playing)
+        case .playing, .lyric, .alert: rect = viewModel.screenRect(for: .playing)
         case .collapsed: rect = viewModel.screenRect(for: .collapsed)
         }
         // Negative inset also extends past the top edge, so the topmost
@@ -276,6 +288,11 @@ final class NotchWindowController {
         collapseTask = nil
         guard !viewModel.state.isOpen else { return }
 
+        // Hovering over a dev alert opens the Dev tab to see it.
+        if viewModel.state == .alert, viewModel.enabledTabs.contains(.dev) {
+            viewModel.select(.dev)
+            viewModel.devActivity.dismissAlert()
+        }
         viewModel.state = .hover
         expandTask?.cancel()
         expandTask = Task { @MainActor [weak self] in
@@ -287,6 +304,8 @@ final class NotchWindowController {
 
     private func pointerExited() {
         guard viewModel.state.isOpen, collapseTask == nil else { return }
+        // Typing in the Hash field: stay open until a click elsewhere.
+        guard !panel.isKeyWindow else { return }
         expandTask?.cancel()
         collapseTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: Self.collapseDelay)
@@ -299,8 +318,17 @@ final class NotchWindowController {
         }
     }
 
+    /// Hands typing back to the app that was frontmost before the panel
+    /// took the keyboard. We never activate, so it's still the active app.
+    private func giveBackKeyboard() {
+        guard panel.isKeyWindow else { return }
+        panel.resignKey()
+        NSWorkspace.shared.frontmostApplication?.activate()
+    }
+
     private func collapseNow() {
         expandTask?.cancel()
+        giveBackKeyboard()
         collapseTask?.cancel()
         collapseTask = nil
         let idle = viewModel.idleState

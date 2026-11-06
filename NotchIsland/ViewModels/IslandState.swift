@@ -8,6 +8,8 @@ enum IslandState: Equatable {
     case playing
     /// Like `playing`, plus a thin lyric strip under the notch.
     case lyric
+    /// A terminal command or AI agent just finished: a strip under the notch.
+    case alert
     /// Cursor over the notch: medium width summary.
     case hover
     /// Full panel with tabs.
@@ -22,6 +24,7 @@ enum IslandTab: Int, CaseIterable, Identifiable {
     case shelf
     case projects
     case storage
+    case dev
     case kanban
 
     var id: Int { rawValue }
@@ -33,12 +36,13 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         case .shelf: "tray.full.fill"
         case .projects: "folder.fill"
         case .storage: "internaldrive.fill"
+        case .dev: "chevron.left.forwardslash.chevron.right"
         case .kanban: "checklist"
         }
     }
 
     /// The left ear only fits three icons; the rest sit beside the title.
-    var isInRightEar: Bool { self == .projects || self == .storage || self == .kanban }
+    var isInRightEar: Bool { self == .projects || self == .storage || self == .dev || self == .kanban }
 
     var title: LocalizedStringKey {
         switch self {
@@ -47,6 +51,7 @@ enum IslandTab: Int, CaseIterable, Identifiable {
         case .shelf: "File Shelf"
         case .projects: "Projects"
         case .storage: "Storage"
+        case .dev: "Dev"
         case .kanban: "Tasks"
         }
     }

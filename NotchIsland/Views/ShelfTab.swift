@@ -14,6 +14,7 @@ struct ShelfTabView: View {
                 Text("^[\(shelf.items.count) item](inflect: true)")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
+                ConversionStatus(shelf: shelf)
                 Spacer()
                 Menu {
                     Toggle("Keep Copies of Dropped Files", isOn: $copiesFiles)
@@ -45,6 +46,9 @@ struct ShelfTabView: View {
                             .font(.system(size: 20, weight: .medium))
                         Text("Drop files here")
                             .font(.system(size: 12))
+                        Text("Right-click a file to convert it")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.4))
                     }
                     .foregroundStyle(.white.opacity(0.55))
                 } else {
@@ -73,11 +77,18 @@ private struct ShelfItemView: View {
     @State private var isHovering = false
 
     private var exists: Bool { item.kind == .text || shelf.fileExists(item) }
+    private var isConverting: Bool { shelf.converting.contains(item.id) }
 
     var body: some View {
         VStack(spacing: 4) {
             icon
                 .frame(width: 40, height: 40)
+                .opacity(isConverting ? 0.35 : 1)
+                .overlay {
+                    if isConverting {
+                        ProgressView().controlSize(.small)
+                    }
+                }
             Text(item.name)
                 .font(.system(size: 10))
                 .foregroundStyle(.white.opacity(0.85))
@@ -100,6 +111,14 @@ private struct ShelfItemView: View {
                 .help(Text("Remove"))
             }
         }
+        .overlay(alignment: .topLeading) {
+            if isHovering, exists, !isConverting {
+                ConvertMenu(item: item, shelf: shelf) {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                }
+                .help(Text("Convert"))
+            }
+        }
         .onHover { isHovering = $0 }
         .onDrag { shelf.itemProvider(for: item) }
         .onTapGesture(count: 2) { shelf.open(item) }
@@ -111,6 +130,9 @@ private struct ShelfItemView: View {
                     .disabled(!exists)
             }
             Button("Copy") { shelf.copyToPasteboard(item) }
+            if exists, !isConverting, !shelf.conversionTargets(for: item).isEmpty {
+                ConvertMenu(item: item, shelf: shelf) { Text("Convert To") }
+            }
             Divider()
             Button("Remove from Shelf", role: .destructive) { shelf.remove(item) }
         }
@@ -137,6 +159,65 @@ private struct ShelfItemView: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(.white.opacity(0.8))
                 )
+        }
+    }
+}
+
+/// "Convert To" submenu listing the formats an item can become. Renders
+/// nothing for items that can't be converted.
+private struct ConvertMenu<Label: View>: View {
+    let item: ShelfItem
+    @ObservedObject var shelf: ShelfService
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        let targets = shelf.conversionTargets(for: item)
+        if !targets.isEmpty {
+            Menu {
+                ForEach(targets) { format in
+                    Button(FileConverter.title(of: format, from: item.url)) { shelf.convert(item, to: format) }
+                }
+            } label: {
+                label()
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
+    }
+}
+
+/// "Converting…" while a conversion runs, then any error for a few seconds.
+private struct ConversionStatus: View {
+    @ObservedObject var shelf: ShelfService
+
+    var body: some View {
+        Group {
+            if let error = shelf.conversionError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help(error)
+            } else if !shelf.converting.isEmpty {
+                Text("Converting…")
+                    .foregroundStyle(.white.opacity(0.5))
+            } else if let notice = shelf.conversionNotice {
+                Label(notice, systemImage: "info.circle.fill")
+                    .foregroundStyle(.yellow.opacity(0.9))
+                    .help(notice)
+            }
+        }
+        .font(.system(size: 11, weight: .medium))
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .task(id: shelf.conversionError) {
+            guard shelf.conversionError != nil else { return }
+            try? await Task.sleep(for: .seconds(6))
+            shelf.conversionError = nil
+        }
+        .task(id: shelf.conversionNotice) {
+            guard shelf.conversionNotice != nil else { return }
+            try? await Task.sleep(for: .seconds(8))
+            shelf.conversionNotice = nil
         }
     }
 }

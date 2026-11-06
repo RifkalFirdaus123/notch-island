@@ -19,6 +19,8 @@ struct ExpandedIslandView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
+                    // Long localized titles ("Penyimpanan") beside three icons.
+                    .minimumScaleFactor(0.85)
                 HStack(spacing: 2) {
                     ForEach(viewModel.enabledTabs.filter(\.isInRightEar)) { tab in
                         TabButton(tab: tab, isSelected: tab == viewModel.selectedTab) {
@@ -62,6 +64,13 @@ struct ExpandedIslandView: View {
             ProjectsTabView(projects: viewModel.projects)
         case .storage:
             StorageTabView(storage: viewModel.storage)
+        case .dev:
+            DevTabView(
+                activity: viewModel.devActivity,
+                ports: viewModel.ports,
+                clipboard: viewModel.clipboard,
+                wantsKeyboard: $viewModel.wantsKeyboard
+            )
         case .kanban:
             KanbanTabView(kanban: viewModel.kanban)
         }

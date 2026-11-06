@@ -81,6 +81,44 @@ xcodebuild -project NotchIsland.xcodeproj -scheme NotchIsland -derivedDataPath b
 
 MediaRemote (API privat) tidak dipakai karena sudah dibatasi Apple sejak macOS 15.4.
 
+## Tab Dev (utilitas coding)
+
+Ikon `</>` di sisi kanan notch. Isinya:
+
+| Bagian | Fungsi |
+| --- | --- |
+| Aktivitas | AI agent yang sedang berjalan (Claude Code, Codex, Gemini CLI, Aider, dll.) beserta foldernya, dan riwayat notifikasi dari terminal dan agent |
+| Port | Port TCP lokal yang sedang listen (mis. `:3000 node web-app`). Ikon Safari membuka `http://localhost:PORT`; tombol ⓧ (klik dua kali) menghentikan prosesnya |
+| Clipboard | 25 teks terakhir yang disalin, hanya di memori (hapus per item dengan ×, atau Hapus Semua). Jenisnya dikenali otomatis (URL, JSON, JWT, UUID, warna hex, timestamp, base64) dengan aksi satu klik. Sematkan (📌) item agar tidak hilang, atau beri label (🏷) seperti "Password database": isinya disamarkan, dan klik label langsung menyalin nilainya |
+| Alat | Base64, URL encode/decode, rapikan atau minify JSON, decode JWT, epoch ke tanggal, UUID, waktu sekarang. Bekerja pada isi clipboard dan hasilnya langsung disalin |
+| Hash | Ketik atau tempel teks di kolom input, lalu MD5, SHA-1, SHA-256, SHA-512 langsung muncul; klik untuk menyalin |
+
+Alat bekerja pada teks yang ada di clipboard: salin teksnya dulu, lalu klik alatnya. Hash punya kolom input sendiri; selama kolom itu dipakai, panel tetap terbuka sampai Anda klik di luar.
+
+### Notifikasi terminal dan AI agent
+
+1. Buka **Pengaturan › Alat Dev**, klik **Pasang**. Helper akan disalin ke `~/.notchisland/`.
+2. Terminal (zsh): tambahkan ke `~/.zshrc`:
+
+   ```sh
+   source ~/.notchisland/notchisland.zsh
+   ```
+
+   Perintah yang berjalan 10 detik atau lebih akan muncul di bawah notch saat selesai, berwarna hijau kalau berhasil dan merah kalau gagal. Editor, pager, `ssh` dan sejenisnya diabaikan. Atur dengan `NOTCHISLAND_MIN_SECONDS` dan `NOTCHISLAND_IGNORE` sebelum baris `source`.
+3. Claude Code: tambahkan blok `hooks` yang bisa disalin dari Pengaturan ke `~/.claude/settings.json`. Island menampilkan saat Claude selesai atau butuh izin atau input.
+4. Codex: tambahkan baris `notify = [...]` dari Pengaturan ke `~/.codex/config.toml`.
+
+Klik **Tes** di Pengaturan untuk mencoba. Notifikasi apa pun bisa dikirim dari skrip sendiri:
+
+```sh
+~/.notchisland/bin/notchisland-notify -s ok "Deploy selesai" "production"
+# -s ok | fail | attention | info
+```
+
+Item clipboard yang disematkan atau diberi label disimpan di **Keychain** macOS (item `NotchIsland.pinnedClips`), bukan di file biasa, karena bisa berisi password. Saat item berlabel disalin, clipboard ditandai *concealed* supaya pengelola clipboard lain tidak mencatatnya. Karena build ditandatangani ad-hoc, macOS bisa bertanya sekali setelah build ulang apakah NotchIsland boleh membaca item Keychain itu; pilih **Always Allow**.
+
+Event ditulis sebagai file kecil di `~/.notchisland/inbox`, dibaca lalu dihapus oleh app. Tidak ada data yang dikirim keluar.
+
 ## Catatan
 
 - Build ditandatangani ad-hoc, jadi macOS bisa meminta ulang izin kamera/Automation setelah build ulang. Pilih **Personal Team** di Signing & Capabilities agar izin tetap tersimpan.
@@ -96,3 +134,4 @@ MediaRemote (API privat) tidak dipakai karena sudah dibatasi Apple sejak macOS 1
 - [x] Fase 5: file shelf
 - [x] Fase 6: lirik (LRCLIB, cache lokal, unit test parser & pencocokan)
 - [x] Fase 7: pengaturan, menu bar, buka saat login, lokalisasi id/en
+- [x] Fase 8: tab Dev (notifikasi terminal & AI agent, port aktif, clipboard, alat, hash)

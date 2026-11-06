@@ -1,38 +1,64 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "NSCameraUsageDescription": {
-      "localizations": {
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NotchIsland menampilkan cermin kamera langsung di tab Kamera. Video tidak pernah direkam atau dikirim ke mana pun."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NotchIsland shows a live camera mirror in the Camera tab. Video is never recorded or sent anywhere."
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "NotchIsland"
           }
         }
       }
     },
-    "NSAppleEventsUsageDescription": {
-      "localizations": {
-        "id": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NotchIsland membaca lagu yang sedang diputar dari Spotify, Music, dan YouTube di browser, mengontrol pemutarannya, serta meminta Finder mengosongkan Tong Sampah dari tab Penyimpanan."
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "NotchIsland"
+          }
+        }
+      }
+    },
+    "NSAppleEventsUsageDescription" : {
+      "comment" : "Privacy - AppleEvents Sending Usage Description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, controls playback, asks Finder to empty the Trash from the Storage tab, and asks Microsoft Word to turn Word documents into PDF."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NotchIsland reads the current song from Spotify, Music and YouTube in your browser, controls playback, and asks Finder to empty the Trash from the Storage tab."
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NotchIsland membaca lagu yang sedang diputar dari Spotify, Music, dan YouTube di browser, mengontrol pemutarannya, meminta Finder mengosongkan Tong Sampah dari tab Penyimpanan, serta meminta Microsoft Word mengubah dokumen Word menjadi PDF."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NotchIsland shows a live camera mirror in the Camera tab. Video is never recorded or sent anywhere."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NotchIsland menampilkan cermin kamera langsung di tab Kamera. Video tidak pernah direkam atau dikirim ke mana pun."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }
