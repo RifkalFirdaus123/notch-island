@@ -21,6 +21,7 @@ final class IslandViewModel: ObservableObject {
     let shelf: ShelfService
     let projects: ProjectsService
     let storage: StorageService
+    let kanban: KanbanService
     let nowPlaying: NowPlayingService
     let lyricMoods: LyricMoodService
     let mic: MicService
@@ -29,7 +30,12 @@ final class IslandViewModel: ObservableObject {
     static let earWidth: CGFloat = 96
     /// Narrower ears for the idle now-playing row.
     static let idleEarWidth: CGFloat = 42
+    /// The robot's scale while watching: eyes and bucket fill a square the
+    /// size of the artwork.
+    static let watchingRobotScale: CGFloat = 0.52
     static let expandedBaseSize = CGSize(width: 460, height: 180)
+    /// The Tasks tab's board needs room for a few cards per column.
+    static let kanbanExtraHeight: CGFloat = 90
     /// The lyric strip may grow to this fraction of the screen width.
     static let maxLyricWidthFraction: CGFloat = 0.6
     /// Height of the free band above the Home content where the robot sits.
@@ -43,6 +49,7 @@ final class IslandViewModel: ObservableObject {
         shelf: ShelfService,
         projects: ProjectsService,
         storage: StorageService,
+        kanban: KanbanService,
         nowPlaying: NowPlayingService,
         lyricMoods: LyricMoodService,
         mic: MicService
@@ -54,6 +61,7 @@ final class IslandViewModel: ObservableObject {
         self.shelf = shelf
         self.projects = projects
         self.storage = storage
+        self.kanban = kanban
         self.nowPlaying = nowPlaying
         self.lyricMoods = lyricMoods
         self.mic = mic
@@ -74,6 +82,7 @@ final class IslandViewModel: ObservableObject {
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
             case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
             case .storage: UserDefaults.standard.bool(forKey: SettingsKeys.featureStorage)
+            case .kanban: UserDefaults.standard.bool(forKey: SettingsKeys.featureKanban)
             }
         }
     }
@@ -129,11 +138,35 @@ final class IslandViewModel: ObservableObject {
             // Never smaller than the idle shape it grows out of.
             return CGSize(width: max(notch.width + Self.earWidth * 2, idle.width), height: idle.height)
         case .expanded:
-            return CGSize(
-                width: max(Self.expandedBaseSize.width, notch.width + Self.earWidth * 2),
-                height: max(Self.expandedBaseSize.height, notch.height + 100)
-            )
+            return expandedSize(for: selectedTab)
         }
+    }
+
+    func expandedSize(for tab: IslandTab) -> CGSize {
+        let notch = notchSize
+        let extra = tab == .kanban ? Self.kanbanExtraHeight : 0
+        return CGSize(
+            width: max(Self.expandedBaseSize.width, notch.width + Self.earWidth * 2),
+            height: max(Self.expandedBaseSize.height, notch.height + 100) + extra
+        )
+    }
+
+    /// The tallest the expanded panel gets, for sizing the window.
+    var maxExpandedSize: CGSize { expandedSize(for: .kanban) }
+
+    // MARK: - Peeking robot
+
+    /// Nothing playing: the robot hangs around just outside the notch. Only
+    /// on a real notch, which it can duck into and vanish.
+    var showsPeekingBuddy: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.bool(forKey: SettingsKeys.featureBuddy) && defaults.bool(forKey: SettingsKeys.featureBuddyPeek)
+            && geometry?.hasNotch == true && !isSuppressed
+    }
+
+    /// Screen point at the top center of the notch, where the robot measures from.
+    var notchTopCenter: CGPoint? {
+        geometry.map { CGPoint(x: $0.screenFrame.midX, y: $0.screenFrame.maxY) }
     }
 
     // MARK: - Mic button

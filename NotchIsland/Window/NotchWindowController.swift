@@ -93,7 +93,7 @@ final class NotchWindowController {
 
         // Big enough for the expanded panel and the widest lyric strip. The
         // transparent parts let clicks through.
-        let expanded = viewModel.size(for: .expanded)
+        let expanded = viewModel.maxExpandedSize
         let windowSize = CGSize(
             width: max(expanded.width, viewModel.maxLyricWidth) + Self.windowMargin.width,
             height: expanded.height + Self.windowMargin.height
@@ -190,20 +190,28 @@ final class NotchWindowController {
         let point = NSEvent.mouseLocation
         let inside = activeRegion().contains(point)
         let overMic = viewModel.showsMic && viewModel.micBubbleScreenRect.insetBy(dx: -3, dy: -3).contains(point)
-        // Idle, the panel lets clicks through to the menu bar; take them only over the mic button.
-        panel.ignoresMouseEvents = !(viewModel.state.isOpen || overMic)
+        // The idle robot outside the notch can be poked.
+        let overRobot = viewModel.state == .collapsed && viewModel.showsPeekingBuddy && PeekingRobotTouch.contains(point)
+        // Idle, the panel lets clicks through to the menu bar; take them only
+        // over the mic button or the robot.
+        panel.ignoresMouseEvents = !(viewModel.state.isOpen || overMic || overRobot)
 
         switch event.type {
         case .leftMouseDown:
             // Muting shouldn't close the panel or start a drag watch.
             if overMic { return }
+            if overRobot {
+                PeekingRobotTouch.poke()
+                return
+            }
             dragChangeCountAtMouseDown = NSPasteboard(name: .drag).changeCount
             mouseDownInPanel = inside && viewModel.state.isOpen
             // Clicking elsewhere closes the panel immediately.
             if !inside && viewModel.state.isOpen { collapseNow() }
             watchForDrag()
         default:
-            if inside { pointerEntered() } else { pointerExited() }
+            // Reaching for the robot shouldn't open the island.
+            if inside && !overRobot { pointerEntered() } else if !inside { pointerExited() }
         }
     }
 

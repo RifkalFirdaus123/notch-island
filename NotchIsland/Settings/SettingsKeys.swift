@@ -16,6 +16,13 @@ enum SettingsKeys {
     /// Default application used to open projects ("vscode", "antigravity", "finder").
     static let projectsEditor = "projectsEditor"
     static let featureStorage = "featureStorage"
+    /// Tasks tab: unfinished cards from Resam Kanban (kanban.resam.id).
+    static let featureKanban = "featureKanban"
+    /// Which cards the Tasks tab lists ("assigned" or "requested").
+    static let kanbanScope = "kanbanScope"
+    /// Name and institution of the signed-in Resam Kanban user; the token is in the keychain.
+    static let kanbanUserName = "kanbanUserName"
+    static let kanbanInstitutionID = "kanbanInstitutionID"
     static let featureLyrics = "featureLyrics"
     /// Color and style lyrics by the song's mood (calm, hard, upbeat).
     static let lyricMoodStyle = "lyricMoodStyle"
@@ -23,6 +30,8 @@ enum SettingsKeys {
     static let lyricMoodOverrides = "lyricMoodOverrides"
     /// Robot on the Home tab; also replaces the equalizer beside the notch while music plays.
     static let featureBuddy = "featureBuddy"
+    /// With nothing playing, the robot wanders just outside the notch and can be clicked.
+    static let featureBuddyPeek = "featureBuddyPeek"
     /// Mute button beside the notch while an app is using the microphone.
     static let featureMic = "featureMic"
     /// Height of the lyric strip under the notch, in points.
@@ -50,9 +59,11 @@ enum SettingsKeys {
             projectsFolder: "",
             projectsEditor: "antigravity",
             featureStorage: true,
+            featureKanban: true,
             featureLyrics: true,
             lyricMoodStyle: false,
             featureBuddy: true,
+            featureBuddyPeek: true,
             featureMic: true,
             lyricStripHeight: defaultLyricStripHeight,
             idleExtraWidth: 0.0,

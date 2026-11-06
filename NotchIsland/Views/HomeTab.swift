@@ -12,6 +12,9 @@ struct HomeTabView: View {
 
     @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
 
+    /// How far the player moves down to clear the robot's band.
+    private static let robotClearance: CGFloat = 14
+
     var body: some View {
         // An overlay, so the rest of the tab keeps its place: the band
         // above the now-playing block and left of the clock is empty.
@@ -29,6 +32,8 @@ struct HomeTabView: View {
     private var content: some View {
         HStack(alignment: .top, spacing: 16) {
             NowPlayingView(nowPlaying: nowPlaying, lyricMoods: lyricMoods, lyricLine: lyricLine)
+                // Lowered so the robot above it never covers the title.
+                .padding(.top, buddyEnabled ? Self.robotClearance : 0)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(clock.now, format: .dateTime.hour().minute())
@@ -59,7 +64,8 @@ struct HomeTabView: View {
     }
 }
 
-/// The robot under the notch: idles on its own, puts on a headset when music plays.
+/// The robot under the notch: idles on its own, puts on a headset when music
+/// plays, and snacks on popcorn and soda while a video plays.
 private struct HomeRobot: View {
     @ObservedObject var nowPlaying: NowPlayingService
     @ObservedObject var lyricMoods: LyricMoodService
@@ -69,7 +75,8 @@ private struct HomeRobot: View {
             scale: IslandViewModel.homeBuddyHeight / 36,
             isListening: nowPlaying.info?.isPlaying == true,
             mood: lyricMoods.mood,
-            isAngry: nowPlaying.info?.isAd == true
+            isAngry: nowPlaying.info?.isAd == true,
+            isWatching: nowPlaying.info?.isVideo == true
         )
         .frame(maxWidth: .infinity)
         .frame(height: IslandViewModel.homeBuddyHeight)

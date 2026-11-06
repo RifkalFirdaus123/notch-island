@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var nowPlaying: NowPlayingService
+    @ObservedObject var kanban: KanbanService
     let shelfDirectory: URL
 
     @AppStorage(SettingsKeys.showInFullscreen) private var showInFullscreen = false
@@ -11,10 +12,12 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
     @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
+    @AppStorage(SettingsKeys.featureKanban) private var kanbanEnabled = true
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricMoodStyle) private var lyricMoodStyle = false
     @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
+    @AppStorage(SettingsKeys.featureBuddyPeek) private var buddyPeekEnabled = true
     @AppStorage(SettingsKeys.featureMic) private var micEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     @AppStorage(SettingsKeys.idleExtraWidth) private var idleExtraWidth = 0.0
@@ -78,7 +81,13 @@ struct SettingsView: View {
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Storage tab", isOn: $storageEnabled)
+                Toggle("Tasks tab (Resam Kanban)", isOn: $kanbanEnabled)
                 Toggle("Robot buddy (Home tab and beside the notch)", isOn: $buddyEnabled)
+                Toggle(isOn: $buddyPeekEnabled) {
+                    Text("Robot plays around the notch while idle")
+                    Text("With nothing playing, it walks along the notch's edge doing random things. Click it to see how it reacts.")
+                }
+                .disabled(!buddyEnabled)
                 Toggle("Mic mute button while a call or meeting uses the microphone", isOn: $micEnabled)
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
                 Toggle(isOn: $lyricMoodStyle) {
@@ -157,6 +166,8 @@ struct SettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            KanbanSettingsSection(kanban: kanban)
 
             Section {
                 Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. With mood colors on, the title and artist are also sent to the iTunes Search API to look up the genre. The camera picture is never recorded or stored.")
@@ -358,5 +369,95 @@ private struct AddProjectFolderSheet: View {
         path = url.path
         // Suggest the folder's own name, still editable.
         if trimmedName.isEmpty { name = url.lastPathComponent }
+    }
+}
+
+/// Sign in to Resam Kanban for the Tasks tab. Only the token is kept, in the keychain.
+private struct KanbanSettingsSection: View {
+    @ObservedObject var kanban: KanbanService
+
+    @State private var institutions: [KanbanInstitution] = []
+    @State private var institutionID: Int?
+    @State private var username = ""
+    @State private var password = ""
+    @State private var isWorking = false
+    @State private var error: String?
+
+    var body: some View {
+        Section {
+            if kanban.isSignedIn {
+                LabeledContent("Signed in as") {
+                    HStack {
+                        Text(verbatim: kanban.userName).foregroundStyle(.secondary)
+                        Button("Sign Out") { kanban.signOut() }
+                    }
+                }
+            } else {
+                Picker("Institution", selection: $institutionID) {
+                    Text("Choose…").tag(Int?.none)
+                    ForEach(institutions) { institution in
+                        Text(verbatim: institution.name).tag(Int?.some(institution.id))
+                    }
+                }
+                TextField("Username", text: $username)
+                    .textContentType(.username)
+                SecureField("Password", text: $password)
+                    .textContentType(.password)
+                    .onSubmit(signIn)
+                HStack {
+                    if let error {
+                        Text(error).font(.callout).foregroundStyle(.red)
+                    }
+                    Spacer()
+                    if isWorking { ProgressView().controlSize(.small) }
+                    Button("Sign In", action: signIn)
+                        .disabled(!canSignIn)
+                }
+            }
+        } header: {
+            Text("Resam Kanban")
+        } footer: {
+            Text("The Tasks tab lists your unfinished cards from kanban.resam.id. Your password isn't stored; the sign-in token is kept in the keychain.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .task(id: kanban.isSignedIn) { await loadInstitutions() }
+    }
+
+    private var canSignIn: Bool {
+        !isWorking && institutionID != nil
+            && !username.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty
+    }
+
+    private func loadInstitutions() async {
+        guard !kanban.isSignedIn, institutions.isEmpty else { return }
+        do {
+            institutions = try await kanban.institutions().sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+            let saved = UserDefaults.standard.integer(forKey: SettingsKeys.kanbanInstitutionID)
+            if institutionID == nil, institutions.contains(where: { $0.id == saved }) { institutionID = saved }
+        } catch {
+            self.error = String(localized: "Can't load institutions: \(error.localizedDescription)")
+        }
+    }
+
+    private func signIn() {
+        guard canSignIn, let institutionID else { return }
+        isWorking = true
+        error = nil
+        Task {
+            do {
+                try await kanban.signIn(
+                    username: username.trimmingCharacters(in: .whitespaces),
+                    password: password,
+                    institutionID: institutionID
+                )
+                password = ""
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isWorking = false
+        }
     }
 }

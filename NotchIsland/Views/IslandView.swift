@@ -4,6 +4,7 @@ struct IslandView: View {
     @ObservedObject var viewModel: IslandViewModel
     // Re-render when the strip height changes in Settings.
     @AppStorage(SettingsKeys.featureBuddy) private var buddyEnabled = true
+    @AppStorage(SettingsKeys.featureBuddyPeek) private var buddyPeekEnabled = true
     @AppStorage(SettingsKeys.lyricStripHeight) private var lyricStripHeight = SettingsKeys.defaultLyricStripHeight
     // …and when the idle size changes.
     @AppStorage(SettingsKeys.idleExtraWidth) private var idleExtraWidth = 0.0
@@ -41,6 +42,7 @@ struct IslandView: View {
             .shadow(color: .black.opacity(state == .expanded ? 0.4 : 0), radius: 14, y: 6)
             .opacity(isVisible ? 1 : 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .overlay(alignment: .top) { peekingRobot }
             .overlay(alignment: .top) { micButton }
             .environment(\.colorScheme, .dark)
             .animation(Self.animation, value: state)
@@ -48,6 +50,15 @@ struct IslandView: View {
             .animation(Self.animation, value: viewModel.lyricLine)
             .animation(Self.animation, value: idleExtraWidth)
             .animation(Self.animation, value: idleExtraHeight)
+    }
+
+    /// Nothing playing: the robot loiters just outside the notch.
+    @ViewBuilder
+    private var peekingRobot: some View {
+        if state == .collapsed && buddyEnabled && buddyPeekEnabled && viewModel.showsPeekingBuddy {
+            PeekingRobot(notchSize: viewModel.idleNotchSize, notchTopCenter: viewModel.notchTopCenter)
+                .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+        }
     }
 
     /// A small black bubble beside the shape while the microphone is in use.
@@ -169,6 +180,34 @@ private struct HoverSummaryView: View {
     }
 }
 
+/// The robot just outside the notch, which it can duck into: everything
+/// inside the notch's shape is masked away.
+private struct PeekingRobot: View {
+    let notchSize: CGSize
+    let notchTopCenter: CGPoint?
+
+    private static let scale: CGFloat = 0.65
+    /// Room around the notch the robot may wander into.
+    private static let margin = CGSize(width: 50, height: 32)
+
+    var body: some View {
+        RobotBuddyView(scale: Self.scale, isListening: false, mood: .neutral,
+                       peek: RobotBuddyView.PeekArea(notchSize: notchSize, notchTopCenter: notchTopCenter))
+            .frame(width: notchSize.width + Self.margin.width * 2, height: notchSize.height + Self.margin.height,
+                   alignment: .top)
+            .mask(alignment: .top) {
+                ZStack(alignment: .top) {
+                    Rectangle()
+                    NotchShape(topRadius: 0, bottomRadius: 8)
+                        .frame(width: notchSize.width, height: notchSize.height)
+                        .blendMode(.destinationOut)
+                }
+                .compositingGroup()
+            }
+            .allowsHitTesting(false)
+    }
+}
+
 /// Idle row while music plays: artwork left of the notch, equalizer right.
 private struct CompactNowPlayingRow: View {
     let notchSize: CGSize
@@ -177,6 +216,11 @@ private struct CompactNowPlayingRow: View {
     let showsRobot: Bool
     let mood: LyricMood
 
+    private var isWatching: Bool {
+        guard let info = nowPlaying.info else { return false }
+        return info.isVideo && info.isPlaying && !info.isAd
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             ArtworkView(image: nowPlaying.artwork, cornerRadius: 5)
@@ -184,9 +228,12 @@ private struct CompactNowPlayingRow: View {
             Spacer(minLength: notchSize.width)
             if showsRobot {
                 // Narrower than the ear, so the left cup clears the notch's edge.
-                RobotBuddyView(scale: 0.5, isListening: nowPlaying.info?.isPlaying == true, mood: mood,
-                                 isAngry: nowPlaying.info?.isAd == true)
-                    .frame(width: 30, height: notchSize.height)
+                // Watching a video it grows to about the artwork's size, bucket in hand.
+                let scale = isWatching ? IslandViewModel.watchingRobotScale : 0.5
+                RobotBuddyView(scale: scale, isListening: nowPlaying.info?.isPlaying == true, mood: mood,
+                               isAngry: nowPlaying.info?.isAd == true,
+                               isWatching: nowPlaying.info?.isVideo == true)
+                    .frame(width: isWatching ? 22 : 30, height: notchSize.height)
             } else {
                 EqualizerView(
                     isAnimating: nowPlaying.info?.isPlaying == true,

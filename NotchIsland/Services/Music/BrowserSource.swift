@@ -189,8 +189,10 @@ nonisolated enum BrowserScripts {
     if(!v)return '';var m=navigator.mediaSession&&navigator.mediaSession.metadata;var a='';\
     if(m&&m.artwork&&m.artwork.length){a=m.artwork[m.artwork.length-1].src;}\
     var pl=document.getElementById('movie_player');var ad=!!(pl&&pl.classList.contains('ad-showing'));\
-    var sb=document.querySelector('\(skipButtonSelector)');\
-    return JSON.stringify({ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
+    var sb=document.querySelector('\(skipButtonSelector)');var c='';\
+    try{var pr=pl&&pl.getPlayerResponse&&pl.getPlayerResponse();var mf=pr&&pr.microformat&&pr.microformat.playerMicroformatRenderer;\
+    c=(mf&&mf.category)||'';}catch(e){}if(!c){var g=document.querySelector('meta[itemprop=genre]');if(g)c=g.content||'';}\
+    return JSON.stringify({c:c,ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
     ar:(m&&m.artist)?m.artist:'',al:(m&&m.album)?m.album:'',art:a,t:v.currentTime||0,\
     d:isFinite(v.duration)?v.duration:0,p:v.paused,ad:ad,sk:ad&&!!sb&&sb.offsetParent!==null});})()
     """
@@ -325,6 +327,8 @@ nonisolated enum BrowserScripts {
         var p: Bool
         var ad: Bool?
         var sk: Bool?
+        /// YouTube's category for the video ("Music", "Gaming"…), if found.
+        var c: String?
     }
 
     static func parseInfo(json: String, url: String) -> NowPlayingInfo? {
@@ -349,8 +353,23 @@ nonisolated enum BrowserScripts {
             isPlaying: !state.p,
             artworkURL: artwork,
             isAd: state.ad ?? false,
-            canSkipAd: state.sk ?? false
+            canSkipAd: state.sk ?? false,
+            isVideo: !isMusic(url: url, category: state.c ?? "", title: state.ti, artist: state.ar)
         )
+    }
+
+    /// YouTube Music is always music; on YouTube, trust the video's category
+    /// and otherwise guess from the title and channel.
+    static func isMusic(url: String, category: String, title: String, artist: String) -> Bool {
+        if URLComponents(string: url)?.host == "music.youtube.com" { return true }
+        if !category.isEmpty { return category.caseInsensitiveCompare("Music") == .orderedSame }
+        let channel = artist.lowercased()
+        if channel.hasSuffix(" - topic") || channel.contains("vevo") { return true }
+        let name = title.lowercased()
+        let hints = ["official music video", "official video", "official audio", "music video", "lyric",
+                     "lirik", "(audio)", "[audio]", "(mv)", "[mv]", " mv ", "ft.", "feat.", "karaoke",
+                     "remix", "acoustic", "cover", "live session", "visualizer"]
+        return hints.contains { name.contains($0) }
     }
 
     /// Arc returns the script's result JSON-encoded, so our JSON arrives

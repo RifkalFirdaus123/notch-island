@@ -62,6 +62,8 @@ struct ExpandedIslandView: View {
             ProjectsTabView(projects: viewModel.projects)
         case .storage:
             StorageTabView(storage: viewModel.storage)
+        case .kanban:
+            KanbanTabView(kanban: viewModel.kanban)
         }
     }
 }

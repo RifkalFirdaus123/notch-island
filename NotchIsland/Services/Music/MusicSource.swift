@@ -19,6 +19,8 @@ nonisolated struct NowPlayingInfo: Equatable, Sendable {
     var isAd = false
     /// The player shows a "Skip ad" button right now.
     var canSkipAd = false
+    /// A YouTube video that isn't music (a vlog, a game, a film…).
+    var isVideo = false
 
     func position(at date: Date = Date()) -> TimeInterval {
         guard isPlaying else { return elapsed }
@@ -40,6 +42,7 @@ nonisolated struct NowPlayingInfo: Equatable, Sendable {
             && artworkURL == other.artworkURL
             && isAd == other.isAd
             && canSkipAd == other.canSkipAd
+            && isVideo == other.isVideo
             && abs(position(at: now) - other.position(at: now)) < tolerance
     }
 }
