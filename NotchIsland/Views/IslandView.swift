@@ -107,7 +107,12 @@ struct IslandView: View {
                     DevAlertStripView(event: event, notchHeight: viewModel.idleNotchSize.height)
                 }
                 if viewModel.nowPlaying.info?.isPlaying == true {
-                    CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
+                    CompactNowPlayingRow(
+                        notchSize: viewModel.idleNotchSize,
+                        nowPlaying: viewModel.nowPlaying,
+                        showsRobot: buddyEnabled,
+                        mood: viewModel.lyricMood
+                    )
                 }
             }
             .transition(.opacity)

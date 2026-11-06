@@ -54,13 +54,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             kanban: kanban,
             nowPlaying: nowPlaying,
             lyricMoods: lyricMoods,
-<<<<<<< HEAD
             ports: PortsService(),
             devActivity: devActivity,
-            clipboard: clipboard
-=======
+            clipboard: clipboard,
             mic: mic
->>>>>>> upstream/main
         )
         lyrics.$currentLine
             .receive(on: RunLoop.main)

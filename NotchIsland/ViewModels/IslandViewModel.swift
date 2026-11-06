@@ -28,28 +28,21 @@ final class IslandViewModel: ObservableObject {
     let kanban: KanbanService
     let nowPlaying: NowPlayingService
     let lyricMoods: LyricMoodService
-<<<<<<< HEAD
     let ports: PortsService
     let devActivity: DevActivityService
     let clipboard: ClipboardService
-=======
     let mic: MicService
->>>>>>> upstream/main
 
     /// Width of each "ear" next to the notch in the hover state.
     static let earWidth: CGFloat = 96
     /// Narrower ears for the idle now-playing row.
     static let idleEarWidth: CGFloat = 42
-<<<<<<< HEAD
-    static let expandedBaseSize = CGSize(width: 480, height: 180)
-=======
     /// The robot's scale while watching: eyes and bucket fill a square the
     /// size of the artwork.
     static let watchingRobotScale: CGFloat = 0.52
-    static let expandedBaseSize = CGSize(width: 460, height: 180)
+    static let expandedBaseSize = CGSize(width: 480, height: 180)
     /// The Tasks tab's board needs room for a few cards per column.
     static let kanbanExtraHeight: CGFloat = 90
->>>>>>> upstream/main
     /// The lyric strip may grow to this fraction of the screen width.
     static let maxLyricWidthFraction: CGFloat = 0.6
     /// Height of the free band above the Home content where the robot sits.
@@ -66,13 +59,10 @@ final class IslandViewModel: ObservableObject {
         kanban: KanbanService,
         nowPlaying: NowPlayingService,
         lyricMoods: LyricMoodService,
-<<<<<<< HEAD
         ports: PortsService,
         devActivity: DevActivityService,
-        clipboard: ClipboardService
-=======
+        clipboard: ClipboardService,
         mic: MicService
->>>>>>> upstream/main
     ) {
         self.battery = battery
         self.systemStats = systemStats
@@ -84,13 +74,10 @@ final class IslandViewModel: ObservableObject {
         self.kanban = kanban
         self.nowPlaying = nowPlaying
         self.lyricMoods = lyricMoods
-<<<<<<< HEAD
         self.ports = ports
         self.devActivity = devActivity
         self.clipboard = clipboard
-=======
         self.mic = mic
->>>>>>> upstream/main
     }
 
     /// What to show when nobody is hovering.
@@ -109,11 +96,8 @@ final class IslandViewModel: ObservableObject {
             case .shelf: UserDefaults.standard.bool(forKey: SettingsKeys.featureShelf)
             case .projects: UserDefaults.standard.bool(forKey: SettingsKeys.featureProjects)
             case .storage: UserDefaults.standard.bool(forKey: SettingsKeys.featureStorage)
-<<<<<<< HEAD
             case .dev: UserDefaults.standard.bool(forKey: SettingsKeys.featureDev)
-=======
             case .kanban: UserDefaults.standard.bool(forKey: SettingsKeys.featureKanban)
->>>>>>> upstream/main
             }
         }
     }

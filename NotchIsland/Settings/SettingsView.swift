@@ -84,9 +84,7 @@ struct SettingsView: View {
                 Toggle("File Shelf tab", isOn: $shelfEnabled)
                 Toggle("Projects tab", isOn: $projectsEnabled)
                 Toggle("Storage tab", isOn: $storageEnabled)
-<<<<<<< HEAD
                 Toggle("Dev tab", isOn: $devEnabled)
-=======
                 Toggle("Tasks tab (Resam Kanban)", isOn: $kanbanEnabled)
                 Toggle("Robot buddy (Home tab and beside the notch)", isOn: $buddyEnabled)
                 Toggle(isOn: $buddyPeekEnabled) {
@@ -95,7 +93,6 @@ struct SettingsView: View {
                 }
                 .disabled(!buddyEnabled)
                 Toggle("Mic mute button while a call or meeting uses the microphone", isOn: $micEnabled)
->>>>>>> upstream/main
                 Toggle("Lyrics under the notch", isOn: $lyricsEnabled)
                 Toggle(isOn: $lyricMoodStyle) {
                     Text("Mood colors for lyrics and robot eyes")
@@ -176,15 +173,12 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-<<<<<<< HEAD
             DevToolsSettingsSection(
                 devEnabled: devEnabled,
                 devAlerts: $devAlerts,
                 clipboardHistory: $clipboardHistory
             )
-=======
             KanbanSettingsSection(kanban: kanban)
->>>>>>> upstream/main
 
             Section {
                 Text("Lyrics come from LRCLIB; only the song title, artist, album and length are sent. With mood colors on, the title and artist are also sent to the iTunes Search API to look up the genre. The camera picture is never recorded or stored.")

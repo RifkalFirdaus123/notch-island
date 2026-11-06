@@ -64,7 +64,6 @@ struct ExpandedIslandView: View {
             ProjectsTabView(projects: viewModel.projects)
         case .storage:
             StorageTabView(storage: viewModel.storage)
-<<<<<<< HEAD
         case .dev:
             DevTabView(
                 activity: viewModel.devActivity,
@@ -72,10 +71,8 @@ struct ExpandedIslandView: View {
                 clipboard: viewModel.clipboard,
                 wantsKeyboard: $viewModel.wantsKeyboard
             )
-=======
         case .kanban:
             KanbanTabView(kanban: viewModel.kanban)
->>>>>>> upstream/main
         }
     }
 }

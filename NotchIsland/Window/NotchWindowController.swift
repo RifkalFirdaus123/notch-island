@@ -58,7 +58,6 @@ final class NotchWindowController {
             }
             .store(in: &cancellables)
 
-<<<<<<< HEAD
         viewModel.$wantsKeyboard
             .removeDuplicates()
             .sink { [weak self] wants in
@@ -68,16 +67,13 @@ final class NotchWindowController {
             }
             .store(in: &cancellables)
 
-        // Show or hide the lyric strip, dev alert and now-playing row while idle.
-=======
         // Redraw when a call starts or ends, or the mic is muted.
         viewModel.mic.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.viewModel.objectWillChange.send() }
             .store(in: &cancellables)
 
-        // Show or hide the lyric strip and now-playing row while idle.
->>>>>>> upstream/main
+        // Show or hide the lyric strip, dev alert and now-playing row while idle.
         viewModel.$lyricLine
             .map { $0 != nil }
             .removeDuplicates()
