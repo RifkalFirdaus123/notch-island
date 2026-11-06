@@ -19,7 +19,7 @@ struct IslandView: View {
         switch state {
         case .collapsed: 8
         case .playing: 10
-        case .lyric: 12
+        case .lyric, .alert: 12
         case .hover: 14
         case .expanded: 28
         }
@@ -44,6 +44,7 @@ struct IslandView: View {
             .animation(Self.animation, value: state)
             .animation(Self.animation, value: viewModel.selectedTab)
             .animation(Self.animation, value: viewModel.lyricLine)
+            .animation(Self.animation, value: viewModel.devAlert)
             .animation(Self.animation, value: idleExtraWidth)
             .animation(Self.animation, value: idleExtraHeight)
     }
@@ -65,6 +66,16 @@ struct IslandView: View {
                     mood: viewModel.lyricMood
                 )
                 CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
+            }
+            .transition(.opacity)
+        case .alert:
+            ZStack(alignment: .top) {
+                if let event = viewModel.devAlert {
+                    DevAlertStripView(event: event, notchHeight: viewModel.idleNotchSize.height)
+                }
+                if viewModel.nowPlaying.info?.isPlaying == true {
+                    CompactNowPlayingRow(notchSize: viewModel.idleNotchSize, nowPlaying: viewModel.nowPlaying)
+                }
             }
             .transition(.opacity)
         case .hover:

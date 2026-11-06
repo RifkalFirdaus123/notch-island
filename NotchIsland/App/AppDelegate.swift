@@ -34,6 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let lyricMoods = LyricMoodService(nowPlaying: nowPlaying)
         lyricMoods.start()
         self.lyricMoods = lyricMoods
+        let devActivity = DevActivityService()
+        devActivity.start()
+        let clipboard = ClipboardService()
+        clipboard.start()
 
         let viewModel = IslandViewModel(
             battery: battery,
@@ -44,11 +48,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             projects: ProjectsService(),
             storage: StorageService(),
             nowPlaying: nowPlaying,
-            lyricMoods: lyricMoods
+            lyricMoods: lyricMoods,
+            ports: PortsService(),
+            devActivity: devActivity,
+            clipboard: clipboard
         )
         lyrics.$currentLine
             .receive(on: RunLoop.main)
             .sink { [weak viewModel] line in viewModel?.lyricLine = line }
+            .store(in: &cancellables)
+        devActivity.$alert
+            .receive(on: RunLoop.main)
+            .sink { [weak viewModel] event in viewModel?.devAlert = event }
             .store(in: &cancellables)
         lyricMoods.$mood
             .receive(on: RunLoop.main)

@@ -17,6 +17,12 @@ enum SettingsKeys {
     static let projectsEditor = "projectsEditor"
     static let featureStorage = "featureStorage"
     static let featureLyrics = "featureLyrics"
+    /// Dev tab: ports, terminal and agent activity, clipboard and tools.
+    static let featureDev = "featureDev"
+    /// Pop terminal and agent events up on the island.
+    static let devAlerts = "devAlerts"
+    /// Keep recently copied text (in memory only) in the Dev tab.
+    static let clipboardHistory = "clipboardHistory"
     /// Color and style lyrics by the song's mood (calm, hard, upbeat).
     static let lyricMoodStyle = "lyricMoodStyle"
     /// Moods picked by hand, keyed by song ("artist|title").
@@ -47,6 +53,9 @@ enum SettingsKeys {
             projectsEditor: "antigravity",
             featureStorage: true,
             featureLyrics: true,
+            featureDev: true,
+            devAlerts: true,
+            clipboardHistory: true,
             lyricMoodStyle: false,
             lyricStripHeight: defaultLyricStripHeight,
             idleExtraWidth: 0.0,

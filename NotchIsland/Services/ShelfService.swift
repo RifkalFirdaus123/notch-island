@@ -53,6 +53,12 @@ struct JSONShelfStore: ShelfStore {
 
 final class ShelfService: ObservableObject {
     @Published private(set) var items: [ShelfItem] = []
+    /// Items being converted right now.
+    @Published private(set) var converting: Set<UUID> = []
+    /// Why the last conversion failed, shown briefly in the tab.
+    @Published var conversionError: String?
+    /// A note about the last result, e.g. that only the text was kept.
+    @Published var conversionNotice: String?
 
     /// Types accepted by the drop target, most specific first.
     static let acceptedTypes: [UTType] = [.fileURL, .image, .url, .plainText]
@@ -223,6 +229,42 @@ final class ShelfService: ObservableObject {
             if let url = item.url { pasteboard.writeObjects([url as NSURL]) }
         case .text:
             pasteboard.setString(item.text ?? "", forType: .string)
+        }
+    }
+
+    // MARK: - Converting
+
+    func conversionTargets(for item: ShelfItem) -> [FileFormat] {
+        guard item.kind == .file, let url = item.url else { return [] }
+        return FileConverter.targets(for: url)
+    }
+
+    /// Converts in the background and adds the result to the shelf. The file
+    /// is saved next to the original; files kept in the shelf folder (or in a
+    /// folder we can't write to) get their result in the shelf folder.
+    func convert(_ item: ShelfItem, to format: FileFormat) {
+        guard let source = item.url, !converting.contains(item.id) else { return }
+        let parent = source.deletingLastPathComponent()
+        let inShelfFolder = item.isCopy || !FileManager.default.isWritableFile(atPath: parent.path)
+        let directory = inShelfFolder ? filesDirectory : parent
+
+        converting.insert(item.id)
+        conversionError = nil
+        conversionNotice = nil
+        Task.detached(priority: .userInitiated) {
+            let result = Result { try FileConverter.convert(source, to: format, in: directory) }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.converting.remove(item.id)
+                switch result {
+                case .success(let outcome):
+                    self.append(self.fileItem(for: outcome.url, isCopy: inShelfFolder))
+                    self.conversionNotice = outcome.notice
+                case .failure(let error):
+                    NSLog("NotchIsland: failed to convert \(source.path) to \(format.rawValue): \(error)")
+                    self.conversionError = error.localizedDescription
+                }
+            }
         }
     }
 
