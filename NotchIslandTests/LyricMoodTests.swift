@@ -65,3 +65,27 @@ struct AudioFeaturesMoodTests {
         #expect(LyricMoodClassifier.mood(genre: "Pop", title: "Song (Acoustic)", features: loud) == .calm)
     }
 }
+
+struct MusicDetectionTests {
+    private let yt = "https://www.youtube.com/watch?v=abc"
+
+    @Test func musicVideoFiledUnderEntertainmentIsMusic() {
+        #expect(BrowserScripts.isMusic(url: yt, category: "Entertainment",
+                                      title: "Tulus - Hati-Hati di Jalan (Official Music Video)", artist: "TULUS"))
+        #expect(BrowserScripts.isMusic(url: yt, category: "People & Blogs",
+                                      title: "Tulus - Hati-Hati di Jalan", artist: "Tulus"))
+    }
+
+    @Test func topicChannelIsMusic() {
+        #expect(BrowserScripts.isMusic(url: yt, category: "", title: "Hati-Hati di Jalan", artist: "Tulus - Topic"))
+    }
+
+    @Test func musicCategoryIsMusic() {
+        #expect(BrowserScripts.isMusic(url: yt, category: "Music", title: "Some Song", artist: "Someone"))
+    }
+
+    @Test func gamingVideoIsNotMusic() {
+        #expect(!BrowserScripts.isMusic(url: yt, category: "Gaming", title: "Minecraft Hardcore Day 100", artist: "Gamer"))
+        #expect(!BrowserScripts.isMusic(url: yt, category: "", title: "Vlog jalan-jalan ke Bali", artist: "Someone"))
+    }
+}

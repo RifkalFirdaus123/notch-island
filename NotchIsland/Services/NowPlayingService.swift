@@ -21,6 +21,8 @@ final class NowPlayingService: ObservableObject {
     /// When each source last started playing, to prefer the newest one.
     private var playingSince: [ObjectIdentifier: Date] = [:]
     private var artworkTrackID: String?
+    /// Tracks that have lyrics: those are songs, whatever the page says.
+    private var tracksWithLyrics = Set<String>()
     private var artworkTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
@@ -56,6 +58,12 @@ final class NowPlayingService: ObservableObject {
     func previousTrack() { active?.previousTrack() }
     func seek(to position: TimeInterval) { active?.seek(to: position) }
     func skipAd() { active?.skipAd() }
+
+    /// Lyrics were found for `trackID`, so it is a song, never a video to watch.
+    func markHasLyrics(trackID: String) {
+        guard tracksWithLyrics.insert(trackID).inserted else { return }
+        publish(active?.info, from: active)
+    }
 
     // MARK: - Choosing a source
 
@@ -104,8 +112,11 @@ final class NowPlayingService: ObservableObject {
         publish(chosen?.info, from: chosen)
     }
 
-    private func publish(_ newInfo: NowPlayingInfo?, from source: MusicSource?) {
+    private func publish(_ sourceInfo: NowPlayingInfo?, from source: MusicSource?) {
         if source?.displayName != sourceName { sourceName = source?.displayName }
+        var newInfo = sourceInfo
+        // A track with lyrics is music first; only then does the title decide.
+        if let trackID = newInfo?.trackID, tracksWithLyrics.contains(trackID) { newInfo?.isVideo = false }
 
         // Skip updates that only differ by polling jitter.
         if let newInfo, let info, newInfo.isEquivalent(to: info) { return }

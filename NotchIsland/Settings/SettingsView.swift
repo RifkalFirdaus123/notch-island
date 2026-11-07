@@ -12,7 +12,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.featureProjects) private var projectsEnabled = true
     @AppStorage(SettingsKeys.projectsFolder) private var projectsFolder = ""
     @AppStorage(SettingsKeys.featureStorage) private var storageEnabled = true
-    @AppStorage(SettingsKeys.featureKanban) private var kanbanEnabled = true
+    @AppStorage(SettingsKeys.featureKanban) private var kanbanEnabled = false
     @AppStorage(SettingsKeys.projectsEditor) private var projectsEditor = ProjectEditor.antigravity.rawValue
     @AppStorage(SettingsKeys.featureLyrics) private var lyricsEnabled = true
     @AppStorage(SettingsKeys.lyricMoodStyle) private var lyricMoodStyle = false

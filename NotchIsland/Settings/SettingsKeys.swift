@@ -59,7 +59,7 @@ enum SettingsKeys {
             projectsFolder: "",
             projectsEditor: "antigravity",
             featureStorage: true,
-            featureKanban: true,
+            featureKanban: false,
             featureLyrics: true,
             lyricMoodStyle: false,
             featureBuddy: true,

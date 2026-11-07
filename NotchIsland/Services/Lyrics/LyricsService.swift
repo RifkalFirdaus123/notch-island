@@ -76,13 +76,13 @@ final class LyricsService: ObservableObject {
             lines = []
             setLine(nil)
             tickTask?.cancel()
-            load(query)
+            load(query, trackID: info.trackID)
         } else {
             reschedule()
         }
     }
 
-    private func load(_ query: LyricQuery) {
+    private func load(_ query: LyricQuery, trackID: String) {
         loadTask?.cancel()
         loadTask = Task { [weak self, provider, cache] in
             var lrc: String?
@@ -105,6 +105,7 @@ final class LyricsService: ObservableObject {
             }
             guard !Task.isCancelled, let self, self.loadedKey == query.cacheKey else { return }
             self.lines = lrc.map(LRCParser.parse) ?? []
+            if !self.lines.isEmpty { self.nowPlaying.markHasLyrics(trackID: trackID) }
             self.reschedule()
         }
     }

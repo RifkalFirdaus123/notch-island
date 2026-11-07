@@ -190,8 +190,11 @@ nonisolated enum BrowserScripts {
     if(m&&m.artwork&&m.artwork.length){a=m.artwork[m.artwork.length-1].src;}\
     var pl=document.getElementById('movie_player');var ad=!!(pl&&pl.classList.contains('ad-showing'));\
     var sb=document.querySelector('\(skipButtonSelector)');var c='';\
+    var vid=new URLSearchParams(location.search).get('v')||'';\
     try{var pr=pl&&pl.getPlayerResponse&&pl.getPlayerResponse();var mf=pr&&pr.microformat&&pr.microformat.playerMicroformatRenderer;\
-    c=(mf&&mf.category)||'';}catch(e){}if(!c){var g=document.querySelector('meta[itemprop=genre]');if(g)c=g.content||'';}\
+    if(pr&&pr.videoDetails&&pr.videoDetails.videoId===vid)c=(mf&&mf.category)||'';}catch(e){}\
+    if(!c){var g=document.querySelector('meta[itemprop=genre]');var gi=document.querySelector('meta[itemprop=identifier]');\
+    if(g&&gi&&gi.content===vid)c=g.content||'';}\
     return JSON.stringify({c:c,ti:(m&&m.title)?m.title:document.title.replace(/ - YouTube( Music)?$/,''),\
     ar:(m&&m.artist)?m.artist:'',al:(m&&m.album)?m.album:'',art:a,t:v.currentTime||0,\
     d:isFinite(v.duration)?v.duration:0,p:v.paused,ad:ad,sk:ad&&!!sb&&sb.offsetParent!==null});})()
@@ -358,18 +361,24 @@ nonisolated enum BrowserScripts {
         )
     }
 
-    /// YouTube Music is always music; on YouTube, trust the video's category
-    /// and otherwise guess from the title and channel.
+    /// YouTube Music is always music. On YouTube, clear signs of a song (an
+    /// artist "Topic"/VEVO channel, "Official Video", "Artist - Song"…) win
+    /// over the category, since labels often file music videos under
+    /// "Entertainment"; otherwise trust the category, and default to video.
     static func isMusic(url: String, category: String, title: String, artist: String) -> Bool {
         if URLComponents(string: url)?.host == "music.youtube.com" { return true }
-        if !category.isEmpty { return category.caseInsensitiveCompare("Music") == .orderedSame }
-        let channel = artist.lowercased()
+        let channel = artist.lowercased().trimmingCharacters(in: .whitespaces)
         if channel.hasSuffix(" - topic") || channel.contains("vevo") { return true }
         let name = title.lowercased()
-        let hints = ["official music video", "official video", "official audio", "music video", "lyric",
-                     "lirik", "(audio)", "[audio]", "(mv)", "[mv]", " mv ", "ft.", "feat.", "karaoke",
-                     "remix", "acoustic", "cover", "live session", "visualizer"]
-        return hints.contains { name.contains($0) }
+        let hints = ["official music video", "official video", "official audio", "official lyric", "music video",
+                     "lyric", "lirik", "(audio)", "[audio]", "(mv)", "[mv]", " mv ", " m/v", "ft.", "feat.",
+                     "karaoke", "remix", "acoustic", "akustik", "cover", "live session", "visualizer",
+                     "sped up", "slowed", "(official", "[official"]
+        if hints.contains(where: { name.contains($0) }) { return true }
+        // "Artist - Song" posted by the artist's own channel.
+        let base = channel.replacingOccurrences(of: " official", with: "")
+        if !base.isEmpty, name.hasPrefix(base + " - ") || name.hasPrefix(base + " – ") { return true }
+        return category.caseInsensitiveCompare("Music") == .orderedSame
     }
 
     /// Arc returns the script's result JSON-encoded, so our JSON arrives
